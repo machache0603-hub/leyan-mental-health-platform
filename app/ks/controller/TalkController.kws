@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Controller>
+    <name>TalkController</name>
+    <isv></isv>
+    <app>portal</app>
+    <version>1</version>
+    <url></url>
+    <scriptFile>TalkController.ts</scriptFile>
+    <methods>
+        <method>
+            <name>list</name>
+            <url>/talk/list</url>
+            <httpMethod>GET</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_talk_record</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>create</name>
+            <url>/talk/create</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_talk_record</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>toggleFollowUp</name>
+            <url>/talk/toggleFollowUp</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_talk_record</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+    </methods>
+</Controller>

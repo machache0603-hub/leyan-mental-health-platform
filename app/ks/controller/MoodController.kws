@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Controller>
+    <name>MoodController</name>
+    <isv></isv>
+    <app>portal</app>
+    <version>1</version>
+    <url></url>
+    <scriptFile>MoodController.ts</scriptFile>
+    <methods>
+        <method>
+            <name>getHistory</name>
+            <url>/mood/history</url>
+            <httpMethod>GET</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_mood_log</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>checkin</name>
+            <url>/mood/checkin</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_mood_log</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>listStories</name>
+            <url>/mood/stories</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_garden_story</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+    </methods>
+</Controller>

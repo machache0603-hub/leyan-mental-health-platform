@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Controller>
+    <name>TreeholeController</name>
+    <isv></isv>
+    <app>portal</app>
+    <version>1</version>
+    <url></url>
+    <scriptFile>TreeholeController.ts</scriptFile>
+    <methods>
+        <method>
+            <name>list</name>
+            <url>/treehole/list</url>
+            <httpMethod>GET</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_treehole</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>create</name>
+            <url>/treehole/create</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_treehole</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>toggleHug</name>
+            <url>/treehole/toggleHug</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_treehole</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+    </methods>
+</Controller>

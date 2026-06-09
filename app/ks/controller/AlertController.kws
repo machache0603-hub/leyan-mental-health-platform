@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Controller>
+    <name>AlertController</name>
+    <isv></isv>
+    <app>portal</app>
+    <version>1</version>
+    <url></url>
+    <scriptFile>AlertController.ts</scriptFile>
+    <methods>
+        <method>
+            <name>list</name>
+            <url>/alert/list</url>
+            <httpMethod>GET</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_alert</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>advance</name>
+            <url>/alert/advance</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_alert</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+    </methods>
+</Controller>

@@ -1,0 +1,15 @@
+{
+  "name": "leyan-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "乐颜 · 真实可跑后端（Node + PostgreSQL，复用苍穹 KAPI URL 形态）",
+  "scripts": {
+    "start": "node index.mjs",
+    "migrate": "node migrate.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "pg-mem": "^3.0.14"
+  }
+}

@@ -1,0 +1,24 @@
+# 乐颜 · 本地 PostgreSQL（赛题要求 PostgreSQL）
+# 一键起库：docker compose up -d db
+# 连接信息与 server/.env 默认一致（leyan/leyan/leyan @ 5432）
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: leyan-db
+    environment:
+      POSTGRES_USER: leyan
+      POSTGRES_PASSWORD: leyan
+      POSTGRES_DB: leyan
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - leyan-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leyan -d leyan"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  leyan-pgdata:

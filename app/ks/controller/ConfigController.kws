@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Controller>
+    <name>ConfigController</name>
+    <isv></isv>
+    <app>portal</app>
+    <version>1</version>
+    <url></url>
+    <scriptFile>ConfigController.ts</scriptFile>
+    <methods>
+        <method>
+            <name>get</name>
+            <url>/config/get</url>
+            <httpMethod>GET</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_config</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>save</name>
+            <url>/config/save</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll></permitAll>
+                    <anonymousUser>false</anonymousUser>
+                    <entityNumber>ly_config</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+    </methods>
+</Controller>

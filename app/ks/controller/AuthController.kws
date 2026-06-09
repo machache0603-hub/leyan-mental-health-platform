@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Controller>
+    <name>AuthController</name>
+    <isv></isv>
+    <app>portal</app>
+    <version>1</version>
+    <url></url>
+    <scriptFile>AuthController.ts</scriptFile>
+    <methods>
+        <method>
+            <name>login</name>
+            <url>/auth/login</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll>true</permitAll>
+                    <anonymousUser>true</anonymousUser>
+                    <entityNumber>ly_user</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+        <method>
+            <name>me</name>
+            <url>/auth/me</url>
+            <httpMethod>POST</httpMethod>
+            <permission>
+                <permission>
+                    <permitAll>true</permitAll>
+                    <anonymousUser>true</anonymousUser>
+                    <entityNumber>ly_user</entityNumber>
+                    <permItemId></permItemId>
+                    <checkRightApp></checkRightApp>
+                </permission>
+            </permission>
+        </method>
+    </methods>
+</Controller>

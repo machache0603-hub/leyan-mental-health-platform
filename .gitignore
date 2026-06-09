@@ -1,0 +1,12 @@
+dist
+node_modules
+temp-entry
+.env
+.env.local
+proxy/.env
+server/.env
+server/node_modules
+
+# 本地工具/编辑器配置（与项目无关）
+.claude/
+.vscode/

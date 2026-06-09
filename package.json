@@ -1,0 +1,58 @@
+{
+  "name": "kwc-react-component-template",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:all": "node scripts/dev-all.mjs",
+    "backend": "node server/index.mjs",
+    "proxy": "node proxy/llm-proxy.mjs",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:migrate": "node server/migrate.mjs",
+    "build": "tsx scripts/build.ts",
+    "build:frontend": "tsx scripts/buildFrontend.ts",
+    "build:controller": "tsx scripts/buildController.ts",
+    "server": "tsx server.ts",
+    "debug": "tsx scripts/buildFrontend.ts --watch",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "peerDependencies": {
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "dependencies": {
+    "@kdcloudjs/kwc-shared-utils": "0.x",
+    "@kdcloudjs/shoelace": "^1.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^16.3.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.0.7",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "chokidar": "^3.6.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react": "^7.34.0",
+    "express": "^5.2.1",
+    "jsdom": "^23.0.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "sass": "^1.69.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vite-plugin-css-injected-by-js": "^3.5.2",
+    "vitest": "^1.2.0",
+    "minimist": "^1.2.8",
+    "picocolors": "^1.1.1"
+  }
+}

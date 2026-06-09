@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Page>
+    <!-- KWC表单ID，保障name在应用下唯一 -->
+    <name>demoPage</name>
+    <!-- KWC表单显示名称 -->
+    <masterLabel>demoPage</masterLabel>
+    <!-- 表单模板类型，目前仅支持oneregion -->
+    <template>oneregion</template>
+    <!-- 使用脚手架部署时会自动填充isv -->
+    <isv></isv>
+    <!-- 使用脚手架创建时会自动填充app -->
+    <app>portal</app>
+    <!-- 正整数的版本号，每次升级手动调整加1，不然页面元数无法上传成功 -->
+    <version>1</version>
+    <regions>
+        <region>
+            <name>region1</name>
+            <controls>
+                <!-- 组成页面的组件，需要动态修改，放入什么组件则修改下方control为对应的组件 -->
+                <!-- 组件1：DemoComponent1 实例 instance1 -->
+                <control>
+                    <!-- type代表是什么组件，必须与组件元数据的name保持一致 -->
+                    <type>DemoComponent1</type>
+                    <!-- name为该组件的实例名称，保持唯一即可 -->
+                    <name>instance1</name>
+                    <propertys>
+                        <property>
+                            <!-- 对应组件配置字段的name -->
+                            <name>StringValue</name>
+                            <!-- 在页面中配置的值 -->
+                            <value>hello world</value>
+                        </property>
+                    </propertys>
+                </control>
+                <!-- 组件2：DemoComponent1 实例 instance2 -->
+                <control>
+                    <type>DemoComponent1</type>
+                    <name>instance2</name>
+                </control>
+                <!-- 组件3：DemoComponent2 实例 instance3 -->
+                <control>
+                    <type>DemoComponent2</type>
+                    <name>instance3</name>
+                </control>
+            </controls>
+        </region>
+    </regions>
+</Page>
