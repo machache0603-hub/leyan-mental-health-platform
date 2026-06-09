@@ -2,10 +2,12 @@
    乐颜 · 种子数据（与前端 data.ts 一致，全部脱敏模拟）
    仅在对应表为空时写入，幂等可重复执行，不覆盖用户数据。
    ============================================================ */
-import { createHash } from 'node:crypto';
+import { randomBytes, scryptSync } from 'node:crypto';
 import { q } from './db.mjs';
 
-const sha256 = (s) => createHash('sha256').update(String(s)).digest('hex');
+/** scrypt 加盐哈希（与 server/index.mjs 的 verifyPwd 同格式） */
+const hashPwd = (pwd, salt = randomBytes(16).toString('hex')) =>
+  `scrypt$${salt}$${scryptSync(String(pwd), salt, 64).toString('hex')}`;
 const p2 = (s) => String(s).padStart(2, '0');
 /** 'M/D' -> '2026-MM-DD' */
 const toDate = (md) => { const [m, d] = md.split('/'); return `2026-${p2(m)}-${p2(d)}`; };
@@ -96,7 +98,7 @@ export async function seedAll() {
   if (await isEmpty('ly_user')) {
     for (const u of USERS)
       await q(`insert into ly_user(account, pwd_hash, role, name, number) values($1,$2,$3,$4,$5)`,
-        [u.account, sha256('leyan123'), u.role, u.name, u.number]);
+        [u.account, hashPwd('leyan123'), u.role, u.name, u.number]);
     log.push(`ly_user(${USERS.length})`);
   }
   if (await isEmpty('ly_mood_log')) {

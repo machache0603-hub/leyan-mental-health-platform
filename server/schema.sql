@@ -5,11 +5,11 @@
 -- 学生一律以脱敏编号关联，不存真实姓名/学号（合规）。
 -- ============================================================
 
--- 1. 用户账号（登录鉴权用；密码只存 sha256 摘要，不存明文）
+-- 1. 用户账号（登录鉴权用；密码只存 scrypt 加盐摘要，不存明文）
 create table if not exists ly_user (
   id          bigserial primary key,
   account     varchar(64) unique not null,
-  pwd_hash    varchar(128) not null,
+  pwd_hash    varchar(255) not null,
   role        varchar(16)  not null,           -- student / teacher / admin
   name        varchar(64),
   number      varchar(32),                      -- 脱敏编号 / 工号

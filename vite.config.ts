@@ -144,7 +144,8 @@ export default defineConfig(({ command, mode }: ConfigEnv) => {
     server: {
       port: 3000,
       open: true,
-      host: true
+      // 默认只监听本机；需要局域网演示时用 LY_LAN=1 npm run dev 打开（并同步收紧后端 CORS_ORIGIN）
+      host: process.env.LY_LAN === '1' ? true : 'localhost'
     },
     plugins: [
       react(),

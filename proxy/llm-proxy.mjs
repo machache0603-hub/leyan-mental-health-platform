@@ -25,19 +25,27 @@ try {
 } catch { /* 没有 .env 也能起，只是没配 key 时返回提示 */ }
 
 const PORT = Number(process.env.PORT || 8787);
+/** 默认只听本机回环（代理背后是付费 key，防局域网盗用）；需要时设 HOST=0.0.0.0 */
+const HOST = process.env.HOST || '127.0.0.1';
 const BASE = (process.env.LLM_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
 const KEY = process.env.LLM_API_KEY || '';
 const MODEL = process.env.LLM_MODEL || 'deepseek-v4-pro';
-const ALLOW = process.env.CORS_ORIGIN || '*';
+/** CORS 白名单（逗号分隔），默认只放行本机前端 */
+const ALLOW_LIST = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://127.0.0.1:3000')
+  .split(',').map((x) => x.trim()).filter(Boolean);
 
 const cors = (res) => {
-  res.setHeader('Access-Control-Allow-Origin', ALLOW);
+  const o = res.__origin;
+  const allow = ALLOW_LIST.includes('*') ? (o || '*') : (o && ALLOW_LIST.includes(o) ? o : ALLOW_LIST[0]);
+  res.setHeader('Access-Control-Allow-Origin', allow);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
 };
 const json = (res, code, obj) => { cors(res); res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 
 const server = createServer(async (req, res) => {
+  res.__origin = req.headers.origin;
   if (req.method === 'OPTIONS') { cors(res); res.writeHead(204); res.end(); return; }
 
   if (req.url === '/api/health') {
@@ -72,7 +80,8 @@ const server = createServer(async (req, res) => {
   json(res, 404, { error: 'NOT_FOUND' });
 });
 
-server.listen(PORT, () => {
-  console.log(`[乐颜 LLM 代理] http://localhost:${PORT}  model=${MODEL}  hasKey=${Boolean(KEY)}`);
+server.listen(PORT, HOST, () => {
+  console.log(`[乐颜 LLM 代理] http://${HOST}:${PORT}  model=${MODEL}  hasKey=${Boolean(KEY)}`);
   if (!KEY) console.log('  ⚠️  未检测到 LLM_API_KEY —— 复制 proxy/.env.example 为 proxy/.env 并填入 key');
+  if (HOST !== '127.0.0.1') console.log('  ⚠️  正在监听非回环地址，请确认 CORS_ORIGIN 已收紧到可信来源');
 });

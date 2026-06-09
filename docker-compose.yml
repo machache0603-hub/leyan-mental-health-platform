@@ -11,7 +11,7 @@ services:
       POSTGRES_DB: leyan
       TZ: Asia/Shanghai
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # 只绑本机回环，局域网不可达
     volumes:
       - leyan-pgdata:/var/lib/postgresql/data
     healthcheck:

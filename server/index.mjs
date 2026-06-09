@@ -7,7 +7,7 @@
    响应统一 { code:0, data } / { code:1, message }。
    ============================================================ */
 import { createServer } from 'node:http';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -23,24 +23,74 @@ try {
 } catch { /* ignore */ }
 
 const PORT = Number(process.env.PORT || 8788);
-const ALLOW = process.env.CORS_ORIGIN || '*';
+/** 监听地址：默认只听本机回环，需要局域网演示时设 HOST=0.0.0.0（并配好 CORS_ORIGIN） */
+const HOST = process.env.HOST || '127.0.0.1';
+/** CORS 白名单（逗号分隔）。默认只放行本机前端，不再是 '*' */
+const ALLOW_LIST = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://127.0.0.1:3000')
+  .split(',').map((x) => x.trim()).filter(Boolean);
 
 const sha256 = (s) => createHash('sha256').update(String(s)).digest('hex');
 const hhmm = () => new Date().toTimeString().slice(0, 5);
 const fmtMD = (iso) => `${+iso.slice(5, 7)}/${+iso.slice(8, 10)}`;
-const DEMO_STUDENT = '2026010188';
 const LOW = new Set(['low', 'anxious', 'sad']);
+const MOOD_SET = new Set(['joy', 'love', 'calm', 'low', 'anxious', 'sad']);
 const DEFAULT_CONFIG = { riskThresholdHigh: 3, riskThresholdMid: 4, notifyChannels: { app: true, sms: true, email: false }, anonymousDefault: true, nightMode: 'auto' };
 
-/* —— 登录会话（进程内；重启失效，前端会重新登录） —— */
-const sessions = new Map();          // token -> { account, role, name, number }
+/** 文本字段统一裁剪（防超长灌库） */
+const cap = (v, max) => String(v ?? '').slice(0, max);
+
+/* —— 密码哈希：scrypt（加盐、抗 GPU 爆破）。兼容旧 sha256，登录成功后自动升级 —— */
+const hashPwd = (pwd, salt = randomBytes(16).toString('hex')) =>
+  `scrypt$${salt}$${scryptSync(String(pwd), salt, 64).toString('hex')}`;
+function verifyPwd(pwd, stored) {
+  try {
+    if (String(stored).startsWith('scrypt$')) {
+      const [, salt, key] = String(stored).split('$');
+      const calc = scryptSync(String(pwd), salt, 64);
+      const ref = Buffer.from(key, 'hex');
+      return calc.length === ref.length && timingSafeEqual(calc, ref);
+    }
+    const a = Buffer.from(sha256(pwd));            // 旧格式兼容
+    const b = Buffer.from(String(stored));
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch { return false; }
+}
+
+/* —— 登录限速：同一「账号|IP」10 分钟内最多失败 5 次 —— */
+const loginAttempts = new Map();    // key -> { fails, blockedUntil, last }
+function rateGate(key) {
+  const now = Date.now();
+  if (loginAttempts.size > 5000) {                 // 惰性清理，防内存膨胀
+    for (const [k, v] of loginAttempts) if (v.blockedUntil < now && now - v.last > 600000) loginAttempts.delete(k);
+  }
+  const e = loginAttempts.get(key) || { fails: 0, blockedUntil: 0, last: now };
+  if (e.blockedUntil > now) return { ok: false };
+  return {
+    ok: true,
+    fail() { e.fails++; e.last = now; if (e.fails >= 5) { e.blockedUntil = now + 600000; e.fails = 0; } loginAttempts.set(key, e); },
+    clear() { loginAttempts.delete(key); },
+  };
+}
+
+/* —— 登录会话（进程内；带 8 小时滑动过期） —— */
+const SESSION_TTL = 8 * 3600 * 1000;
+const sessions = new Map();          // token -> { user, expires }
+
+/* —— 接口鉴权表：除登录外全部要求 token；按控制器要求角色 —— */
+const PUBLIC_ROUTES = new Set(['AuthController.login']);
+const ROUTE_ROLE = {
+  MoodController: 'student', DiaryController: 'student', GalleryController: 'student', TreeholeController: 'student',
+  TalkController: 'teacher',
+  AlertController: 'admin', ConfigController: 'admin', ResourceController: 'admin',
+  AuthController: 'any',
+};
 
 async function getConfig() {
   const r = await q(`select data from ly_config where id=1`);
   return r.rowCount ? r.rows[0].data : DEFAULT_CONFIG;
 }
-const studentOf = (ctx) => ctx.user?.number || DEMO_STUDENT;
-const userKey = (ctx) => ctx.user?.account || 'anon';
+const studentOf = (ctx) => ctx.user.number;       // 鉴权层保证 user 存在
+const userKey = (ctx) => ctx.user.account;
 
 /* SQL 片段：树洞列表（含当前用户是否抱过） */
 const TREEHOLE_SELECT = (param) => `
@@ -66,10 +116,11 @@ const routes = {
     return r.rows;
   },
   async 'MoodController.checkin'(p, ctx) {
+    if (!MOOD_SET.has(p.mood)) throw { code: 1, message: '无效的心情类型' };
     const student = studentOf(ctx);
     const today = new Date().toISOString().slice(0, 10);
     await q(`insert into ly_mood_log(student, log_date, mood, note, anonymous) values($1,$2,$3,$4,$5)`,
-      [student, today, p.mood, p.note || null, !!p.anonymous]);
+      [student, today, p.mood, p.note ? cap(p.note, 500) : null, !!p.anonymous]);
     // —— 预警联动：连续 N 次低落自动生成预警，打通 学生→管理端 闭环 ——
     const cfg = await getConfig();
     const n = Number(cfg.riskThresholdHigh) || 3;
@@ -99,11 +150,11 @@ const routes = {
     return r.rows;
   },
   async 'DiaryController.create'(p, ctx) {
-    if (!p.text) throw { code: 1, message: '内容不能为空' };
+    if (!p.text || !String(p.text).trim()) throw { code: 1, message: '内容不能为空' };
     const d = fmtMD(new Date().toISOString().slice(0, 10));
     const r = await q(`insert into ly_diary(student, diary_date, content, emoji) values($1,$2,$3,$4)
                        returning id::int, diary_date as date, content as text, emoji`,
-      [studentOf(ctx), d, p.text, p.emoji || '📝']);
+      [studentOf(ctx), d, cap(p.text, 2000), cap(p.emoji || '📝', 8)]);
     return r.rows[0];
   },
 
@@ -113,10 +164,10 @@ const routes = {
     return r.rows;
   },
   async 'TreeholeController.create'(p, ctx) {
-    if (!p.text) throw { code: 1, message: '内容不能为空' };
+    if (!p.text || !String(p.text).trim()) throw { code: 1, message: '内容不能为空' };
     const ins = await q(`insert into ly_treehole(content, tag) values($1,$2)
                          returning id::int, content as text, tag, hugs, same_feel as "sameFeel", time_ago as "timeAgo"`,
-      [p.text, p.tag || '#情绪']);
+      [cap(p.text, 2000), cap(p.tag || '#情绪', 32)]);
     return { ...ins.rows[0], hugged: false };
   },
   async 'TreeholeController.toggleHug'(p, ctx) {
@@ -139,11 +190,11 @@ const routes = {
     return r.rows;
   },
   async 'TalkController.create'(p, ctx) {
-    const teacher = ctx.user?.name || ctx.user?.account || '老师';
+    const teacher = ctx.user.name || ctx.user.account;
     const r = await q(`insert into ly_talk_record(teacher, student, talk_date, topic, summary, follow_up, done)
                        values($1,$2,$3,$4,$5,$6,false)
                        returning id::int, student, talk_date as date, topic, summary, follow_up as "followUp", done`,
-      [teacher, p.student, p.date, p.topic, p.summary, p.followUp]);
+      [teacher, cap(p.student, 64), cap(p.date, 16), cap(p.topic, 128), cap(p.summary, 2000), cap(p.followUp, 500)]);
     return r.rows[0];
   },
   async 'TalkController.toggleFollowUp'(p) {
@@ -183,11 +234,12 @@ const routes = {
     return r.rows.map((row) => ({ ...row, colors: (row.colors || '').split(',').filter(Boolean) }));
   },
   async 'GalleryController.create'(p, ctx) {
-    const colors = Array.isArray(p.colors) ? p.colors.join(',') : (p.colors || '');
+    const colors = (Array.isArray(p.colors) ? p.colors : []).slice(0, 8).map((c) => cap(c, 16)).join(',');
+    const clamp = (v) => Math.max(0, Math.min(100, Number(v) || 0));
     const r = await q(`insert into ly_artwork(student, prompt, palette, colors, bright, warm, interpret)
                        values($1,$2,$3,$4,$5,$6,$7)
                        returning id::int, prompt, palette, colors, bright, warm, interpret as interp`,
-      [studentOf(ctx), p.prompt || '', p.palette || '', colors, p.bright ?? 0, p.warm ?? 0, p.interpret || '']);
+      [studentOf(ctx), cap(p.prompt, 500), cap(p.palette, 32), colors, clamp(p.bright), clamp(p.warm), cap(p.interpret, 2000)]);
     const row = r.rows[0];
     row.colors = (row.colors || '').split(',').filter(Boolean);
     return row;
@@ -199,15 +251,15 @@ const routes = {
     return r.rows;
   },
   async 'ResourceController.create'(p) {
-    if (!p.title) throw { code: 1, message: '资源标题不能为空' };
+    if (!p.title || !String(p.title).trim()) throw { code: 1, message: '资源标题不能为空' };
     const r = await q(`insert into ly_resource(title, type, emoji, status, usage) values($1,$2,$3,$4,0)
                        returning id::int, title, type, usage, status, emoji`,
-      [p.title, p.type || '图文', p.emoji || '📦', p.status || '草稿']);
+      [cap(p.title, 128), cap(p.type || '图文', 16), cap(p.emoji || '📦', 8), p.status === '已上架' ? '已上架' : '草稿']);
     return r.rows[0];
   },
   async 'ResourceController.update'(p) {
     await q(`update ly_resource set title=coalesce($2,title), type=coalesce($3,type), emoji=coalesce($4,emoji) where id=$1`,
-      [p.id, p.title ?? null, p.type ?? null, p.emoji ?? null]);
+      [p.id, p.title != null ? cap(p.title, 128) : null, p.type != null ? cap(p.type, 16) : null, p.emoji != null ? cap(p.emoji, 8) : null]);
     const r = await q(RESOURCE_SELECT);
     return r.rows;
   },
@@ -223,17 +275,29 @@ const routes = {
   },
 
   /* ---------- 登录鉴权 ---------- */
-  async 'AuthController.login'(p) {
-    const r = await q(`select account, role, name, number from ly_user where account=$1 and role=$2 and pwd_hash=$3`,
-      [String(p.account || '').trim(), p.role, sha256(p.pwd || '')]);
-    if (!r.rowCount) throw { code: 1, message: '账号或密码不正确' };
+  async 'AuthController.login'(p, ctx) {
+    const account = cap(p.account, 64).trim();
+    const role = ['student', 'teacher', 'admin'].includes(p.role) ? p.role : '';
+    if (!account || !role) throw { code: 1, message: '账号或密码不正确' };
+    const gate = rateGate(`${account}|${ctx.ip}`);                 // 防爆破
+    if (!gate.ok) throw { code: 1, message: '尝试次数过多，请 10 分钟后再试' };
+    const r = await q(`select account, pwd_hash as hash, role, name, number from ly_user where account=$1 and role=$2`,
+      [account, role]);
     const u = r.rows[0];
+    if (!u || !verifyPwd(p.pwd || '', u.hash)) { gate.fail(); throw { code: 1, message: '账号或密码不正确' }; }
+    gate.clear();
+    if (!String(u.hash).startsWith('scrypt$')) {                   // 旧 sha256 透明升级为 scrypt
+      await q(`update ly_user set pwd_hash=$2 where account=$1`, [account, hashPwd(p.pwd)]);
+    }
     const token = randomBytes(24).toString('hex');
-    sessions.set(token, u);
+    sessions.set(token, { user: { account: u.account, role: u.role, name: u.name, number: u.number }, expires: Date.now() + SESSION_TTL });
     return { token, account: u.account, role: u.role, name: u.name, number: u.number };
   },
+  async 'AuthController.logout'(p, ctx) {
+    if (ctx.token) sessions.delete(ctx.token);                     // 服务端作废会话
+    return { ok: true };
+  },
   async 'AuthController.me'(p, ctx) {
-    if (!ctx.user) throw { code: 1, message: '未登录' };
     return ctx.user;
   },
 };
@@ -242,7 +306,10 @@ const routes = {
    HTTP 服务
    ============================================================ */
 const cors = (res) => {
-  res.setHeader('Access-Control-Allow-Origin', ALLOW);
+  const o = res.__origin;                                  // 由请求入口注入
+  const allow = ALLOW_LIST.includes('*') ? (o || '*') : (o && ALLOW_LIST.includes(o) ? o : ALLOW_LIST[0]);
+  res.setHeader('Access-Control-Allow-Origin', allow);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
 };
@@ -253,6 +320,7 @@ const readBody = (req) => new Promise((resolve) => {
 });
 
 const server = createServer(async (req, res) => {
+  res.__origin = req.headers.origin;
   if (req.method === 'OPTIONS') { cors(res); res.writeHead(204); res.end(); return; }
 
   if (req.url === '/api/health') {
@@ -270,15 +338,30 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req);
       const auth = req.headers['authorization'] || '';
       const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-      const ctx = { user: sessions.get(token) || null, token };
+      // 会话查找（带滑动过期）
+      let user = null;
+      const sess = sessions.get(token);
+      if (sess) {
+        if (Date.now() > sess.expires) sessions.delete(token);
+        else { sess.expires = Date.now() + SESSION_TTL; user = sess.user; }
+      }
+      const ctx = { user, token, ip: req.socket.remoteAddress || '' };
+      // —— 强制鉴权 + 角色校验（除 login 外全部要求登录） ——
+      if (!PUBLIC_ROUTES.has(key)) {
+        if (!ctx.user) return send(res, 200, { code: 401, message: '未登录或会话已过期' });
+        const need = ROUTE_ROLE[m[1]];
+        if (need && need !== 'any' && ctx.user.role !== need) {
+          return send(res, 200, { code: 403, message: '无权访问该接口' });
+        }
+      }
       const data = await handler(body, ctx);
       return send(res, 200, { code: 0, data });
     } catch (e) {
-      // 仅业务异常（数字 code）原样返回；其余（如 pg 的 ECONNREFUSED 字符串 code）统一包成 code:1
+      // 仅业务异常（数字 code）原样返回；其余统一脱敏，细节只记服务端日志
       if (e && typeof e === 'object' && typeof e.code === 'number') return send(res, 200, e);
       console.error(`[乐颜 后端] ${key} 出错：`, e?.message || e);
       const dbDown = e && (e.code === 'ECONNREFUSED' || e.code === 'ETIMEDOUT' || /ECONNREFUSED|connect|password|database .* does not exist/i.test(e?.message || ''));
-      return send(res, 200, { code: 1, message: dbDown ? '数据库未连接，请先起库并迁移（详见后端运行手册）' : (e?.message || '服务器错误') });
+      return send(res, 200, { code: 1, message: dbDown ? '数据库未连接，请先起库并迁移（详见后端运行手册）' : '服务器开小差了，请稍后再试' });
     }
   }
 
@@ -298,10 +381,11 @@ if (process.env.PG_MEM === '1' && memDb) {
   }
 }
 
-server.listen(PORT, async () => {
+server.listen(PORT, HOST, async () => {
   let db = false;
   try { db = await ping(); } catch { /* ignore */ }
-  console.log(`[乐颜 后端] http://localhost:${PORT}  (苍穹 KAPI 形态 /ierp/kapi/app/...)`);
+  console.log(`[乐颜 后端] http://${HOST}:${PORT}  (苍穹 KAPI 形态 /ierp/kapi/app/...)`);
+  if (HOST !== '127.0.0.1') console.log('  ⚠️  正在监听非回环地址，请确认 CORS_ORIGIN 已收紧到可信来源');
   console.log(`[乐颜 后端] PostgreSQL ${DB_LABEL} —— ${db ? '已连接 ✅' : '未连接 ⚠️（请先起库并 migrate）'}`);
   if (!db) console.log('  提示：docker compose up -d db  然后  node server/migrate.mjs');
 });

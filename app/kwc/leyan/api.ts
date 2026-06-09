@@ -250,7 +250,10 @@ export const AuthApi = {
     setToken(u.token);
     return delay(u);
   },
-  logout() { clearToken(); },
+  logout() {
+    if (REMOTE) callKapi('AuthController', 'logout').catch(() => { /* 会话已失效则忽略 */ });
+    clearToken();
+  },
 };
 
 /** 后端健康探测（server 模式用；返回是否连上 PostgreSQL） */
