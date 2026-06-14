@@ -143,7 +143,7 @@ export const TreeholeApi = {
 };
 
 /* —— 我的画廊（疗愈画作） —— */
-export interface Artwork { id: number; prompt: string; palette?: string; colors: string[]; bright?: number; warm?: number; interp: string; }
+export interface Artwork { id: number; prompt: string; palette?: string; colors: string[]; bright?: number; warm?: number; interp: string; image?: string; }
 export const GalleryApi = {
   list(): Promise<Artwork[]> {
     if (REMOTE) return callKapi('GalleryController', 'list');
@@ -154,6 +154,39 @@ export const GalleryApi = {
     const item: Artwork = { id: Date.now(), ...a };
     lset('gallery', [item, ...lget<Artwork[]>('gallery', [])]);
     return delay(item);
+  },
+};
+
+/* —— 悄悄话聊天记录（本人私有；危机会话打标记，符合心理平台隐私约束） —— */
+export interface ChatMsg { who: 'me' | 'warm'; text: string; mood?: MoodKey; }
+export interface ChatSession { id: string; date: string; preview: string; lastMood?: MoodKey; crisis: boolean; msgs: ChatMsg[]; }
+export const ChatApi = {
+  /** 会话列表（不含逐条消息，仅预览/时间/危机标记），按时间倒序 */
+  listSessions(): Promise<ChatSession[]> {
+    if (REMOTE) return callKapi('ChatController', 'listSessions');
+    const all = lget<ChatSession[]>('chat_sessions', []);
+    return delay(all.map(s => ({ ...s, msgs: [] })));
+  },
+  /** 取某次会话的全部消息 */
+  getMessages(sessionId: string): Promise<ChatMsg[]> {
+    if (REMOTE) return callKapi('ChatController', 'getMessages', { sessionId });
+    const all = lget<ChatSession[]>('chat_sessions', []);
+    return delay(all.find(s => s.id === sessionId)?.msgs ?? []);
+  },
+  /** 保存一轮对话（用户一句 + 小暖一句）；首轮自动建会话。返回会话 id */
+  saveTurn(p: { sessionId: string | null; user: ChatMsg; warm: ChatMsg; crisis: boolean }): Promise<{ sessionId: string }> {
+    if (REMOTE) return callKapi('ChatController', 'saveTurn', p);
+    const all = lget<ChatSession[]>('chat_sessions', []);
+    let s = p.sessionId ? all.find(x => x.id === p.sessionId) : undefined;
+    if (!s) {
+      s = { id: 'cs-' + Date.now(), date: todayMD(), preview: p.user.text.slice(0, 30), lastMood: p.warm.mood, crisis: false, msgs: [] };
+      all.unshift(s);                       // 新会话置顶
+    }
+    s.msgs.push(p.user, p.warm);
+    s.lastMood = p.warm.mood;
+    if (p.crisis) s.crisis = true;
+    lset('chat_sessions', all);
+    return delay({ sessionId: s.id });
   },
 };
 
@@ -264,6 +297,6 @@ export async function serverHealth(): Promise<{ ok: boolean; db: boolean } | nul
 
 /** 开发用：清空本地数据，恢复种子数据 */
 export function resetLocal() {
-  ['mood_history', 'garden_stories', 'diary', 'treehole', 'gallery', 'talks', 'alerts', 'resources', 'config']
+  ['mood_history', 'garden_stories', 'diary', 'treehole', 'gallery', 'chat_sessions', 'talks', 'alerts', 'resources', 'config']
     .forEach(k => localStorage.removeItem(KEY(k)));
 }

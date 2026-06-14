@@ -46,7 +46,7 @@ export async function detectEmotion(text: string): Promise<EmotionResult> {
 export async function smallTalk(text: string): Promise<ChatReply> {
   const out = await chat([
     { role: 'system', content: `${PERSONA} 只返回JSON。` },
-    { role: 'user', content: `同学对你说：「${text}」。\n请共情回应（1~2句，可带一个温柔的追问）。返回 {"text":"回应","mood":"joy|love|calm|low|anxious|sad(你感知到的对方情绪)","crisis":bool,"suggestRelax":bool(对方疲惫/焦虑/难过时为true),"quickReplies":["3个简短快捷回复"]}。若检测到危机信号，text 要温柔确认安全并给出求助方向。` },
+    { role: 'user', content: `同学对你说：「${text}」。\n请共情回应（1~2句，可带一个温柔的追问）。返回 {"text":"回应","mood":"joy|love|calm|low|anxious|sad(你感知到的对方情绪)","crisis":bool,"suggestRelax":bool(对方疲惫/焦虑/难过时为true),"quickReplies":["3个简短快捷回复"]}。\n【危机优先·最重要】只要出现“想死/不想活/活不下去/自杀/轻生/伤害自己/活着没意义”等任何自伤或轻生信号，crisis 必须为 true、suggestRelax 为 true；此时 text 要先温柔确认安全、表达坚定陪伴“你不是一个人”，并明确给出 24 小时免费的「全国心理援助热线 12356」，再温和询问是否愿意联系信任的老师。绝不能把这类内容当作平常情绪轻描淡写带过。` },
   ], { json: true, temperature: 0.8 });
   const j = parseJson<any>(out);
   return {
@@ -56,6 +56,19 @@ export async function smallTalk(text: string): Promise<ChatReply> {
     suggestRelax: Boolean(j.suggestRelax),
     quickReplies: Array.isArray(j.quickReplies) ? j.quickReplies.slice(0, 3) : ['嗯，是这样', '还有别的事', '陪我放松一下'],
   };
+}
+
+/* —— 文生图：把心情画成一幅画（经代理调 StepFun） —— */
+export async function generateArt(prompt: string): Promise<string> {
+  const r = await fetch(`${PROXY}/api/image/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
+  const data = await r.json();
+  if (data.error) throw new Error(`${data.error}: ${data.message || ''}`);
+  if (!data.url) throw new Error('未返回图片');
+  return String(data.url);
 }
 
 /* —— 画作解读 —— */

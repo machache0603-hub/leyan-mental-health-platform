@@ -40,9 +40,9 @@ const copyStaticPlugin = () => {
         copyDirRecursive(staticDir, outDir);
       }
     },
-    configureServer(server) {
+    configureServer(server: any) {
       const staticDir = path.resolve('app', 'kwc', 'static');
-      server.middlewares.use((req, res, next) => {
+      server.middlewares.use((req: any, res: any, next: any) => {
         // 动态匹配 static 目录下的子目录，如 /lang/xxx -> /static/lang/xxx
         if (fs.existsSync(staticDir)) {
           const entries = fs.readdirSync(staticDir, { withFileTypes: true });
@@ -64,7 +64,7 @@ const copyStaticPlugin = () => {
 const serveShoelaceThemePlugin = () => {
   return {
     name: 'serve-shoelace-theme',
-    apply: 'serve',
+    apply: 'serve' as const,
     configureServer(server: any) {
       server.middlewares.use((req: any, res: any, next: any) => {
         // 匹配 /themes/*.css 路径，支持 light、dark、nova 等所有主题
@@ -140,6 +140,10 @@ export default defineConfig(({ command, mode }: ConfigEnv) => {
 
     root: isBuild ? undefined : 'app/kwc',
 
+    // dev 模式 root 为 app/kwc，但 .env 文件放在项目根（leyan/），
+    // 显式指定 envDir 到项目根，确保 VITE_AI_BACKEND / VITE_DATA_BACKEND 等被加载。
+    envDir: __dirname,
+
     // 公共配置
     server: {
       port: 3000,
@@ -167,10 +171,7 @@ export default defineConfig(({ command, mode }: ConfigEnv) => {
           quietDeps: true,
           api: 'modern'
         }
-      },
-      codeSplit: false,
-      extract: false,
-      inject: true
+      }
     },
     logLevel: 'info' as const
   };

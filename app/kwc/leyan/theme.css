@@ -11,6 +11,8 @@
   --ly-accent: #ffc46b;        /* 暖金 */
   --ly-pink: #ff9eb1;          /* 心动玫瑰 */
   --ly-mint: #7fd1ae;          /* 平静薄荷 */
+  /* 悄悄话「我」气泡：饱和橙渐变，白字在日/夜两种模式都高对比（不随主题变浅） */
+  --ly-bubble-me: linear-gradient(120deg, #ff8a5b, #f4703f);
 
   /* 心情色板 */
   --mood-joy: #ffb74d;         /* 开心 · 向日葵 */
@@ -27,10 +29,10 @@
   --ly-surface-2: #f6f1ea;
   --ly-surface-3: #efe8df;
 
-  /* 文字 */
+  /* 文字（text-3 由 #b1a89e 调深以满足对比度，避免次要文字在暖底上发虚） */
   --ly-text: #3f3833;
-  --ly-text-2: #847a70;
-  --ly-text-3: #b1a89e;
+  --ly-text-2: #7a7065;
+  --ly-text-3: #968b7e;
   --ly-on-primary: #ffffff;
 
   /* 线条 / 阴影（轻、扁平） */
@@ -47,6 +49,18 @@
   --r-pill: 999px;
 
   --gap: 16px;
+
+  /* 间距尺度（8pt 基准） */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-8: 48px;
+  /* 字阶（约 1.25 模块化比例） */
+  --fs-xs: 11px; --fs-sm: 12.5px; --fs-md: 14px; --fs-lg: 17px; --fs-xl: 21px; --fs-2xl: 26px; --fs-3xl: 33px;
+  /* 动效令牌（统一时长与缓动，便于 reduced-motion 统一关停） */
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: .15s; --dur-base: .25s; --dur-slow: .5s;
+  /* 焦点环（键盘可达，无障碍） */
+  --ly-focus: #ff7a45;
+  --ly-focus-ring: 0 0 0 3px color-mix(in srgb, var(--ly-focus) 35%, transparent);
 
   /* 状态色 */
   --ok: #5cc08e;
@@ -72,8 +86,9 @@
   --ly-surface-3: #382f40;
 
   --ly-text: #f0e8e0;
-  --ly-text-2: #c2b4ac;
-  --ly-text-3: #8d8088;
+  --ly-text-2: #c8bbb2;
+  --ly-text-3: #a99ca2;
+  --ly-focus: #ffa06b;
 
   --ly-border: #3d3447;
   --ly-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.25);
@@ -115,6 +130,13 @@
     radial-gradient(560px 420px at 100% 8%, rgba(190, 150, 220, 0.12), transparent 68%),
     radial-gradient(720px 540px at 60% 108%, rgba(110, 160, 200, 0.10), transparent 70%);
 }
+/* 对比度遮罩：盖在氛围照片之上、页面内容之下，把整体提亮，
+   让压在背景上的标题/副文本（不在卡片里的文字）清晰可读。 */
+.ly-bg-layer::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--ly-bg); opacity: 0.5; transition: opacity .6s ease;
+}
+.ly-dark .ly-bg-layer::after { opacity: 0.45; }
 /* 夜间细星点 */
 .ly-bg-stars { position: absolute; inset: 0; opacity: 0; transition: opacity .8s ease; }
 .ly-dark .ly-bg-stars { opacity: .5; }
@@ -125,6 +147,22 @@
 button { background: none; }
 .ly-root a { color: inherit; text-decoration: none; }
 .ly-root ul { margin: 0; padding: 0; list-style: none; }
+
+/* ----------------------------- 无障碍 / 全局 ----------------------------- */
+/* 键盘可见焦点环：仅键盘 Tab 聚焦时出现（鼠标点击不显示）。:where 0 特异性，不覆盖组件自身样式 */
+:where(.ly-root button, .ly-root a, .ly-root input, .ly-root textarea, .ly-root select, .ly-root [tabindex]):focus-visible {
+  outline: 2px solid var(--ly-focus);
+  outline-offset: 2px;
+}
+/* 文本选区配色，呼应品牌暖橙 */
+.ly-root ::selection { background: color-mix(in srgb, var(--ly-primary) 28%, transparent); }
+/* 尊重系统“减少动态效果”偏好：统一关停动画与过渡（无障碍 + 防眩晕） */
+@media (prefers-reduced-motion: reduce) {
+  .ly-root *, .ly-root *::before, .ly-root *::after {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+}
 
 /* ----------------------------- 布局外壳 ----------------------------- */
 .ly-shell { display: flex; min-height: 100vh; }
@@ -196,6 +234,24 @@ button { background: none; }
 .ly-nav-item.on .ico { color: var(--ly-primary); }
 
 .ly-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* 汉堡按钮：仅移动端出现（默认隐藏） */
+.ly-burger { display: none; }
+/* 移动端导航遮罩；桌面端永不显示 */
+.ly-nav-scrim { position: fixed; inset: 0; background: rgba(40, 30, 25, .42); backdrop-filter: blur(2px); z-index: 65; }
+@media (min-width: 881px) { .ly-nav-scrim { display: none; } }
+/* 响应式：≤880px 侧栏变为左侧抽屉，汉堡呼出 */
+@media (max-width: 880px) {
+  .ly-sidebar {
+    position: fixed; top: 0; left: 0; z-index: 70; height: 100vh;
+    transform: translateX(-100%); transition: transform var(--dur-base) var(--ease-out);
+    box-shadow: var(--ly-shadow-lg);
+  }
+  .ly-sidebar.open { transform: translateX(0); }
+  .ly-burger { display: grid; }
+  .ly-topbar { padding: 0 16px; }
+  .ly-page { padding: 20px 16px 56px; }
+}
 .ly-topbar {
   height: 64px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 28px; position: sticky; top: 0; z-index: 20;
@@ -233,6 +289,21 @@ button { background: none; }
 }
 .card.hover:hover { box-shadow: var(--ly-shadow); transform: translateY(-3px); }
 .card-pad-lg { padding: 28px; }
+
+/* 柔和主题横幅卡（hero/banner）：日夜自适应，文字始终保持高对比（避免夜间浅字压浅底） */
+.ly-banner { border: none; }
+.ly-banner-cool   { background: linear-gradient(120deg, #eaf6ff, #f3ecff); }
+.ly-banner-nature { background: linear-gradient(180deg, #eafbe7, #d7f0ff); }
+.ly-banner-warm   { background: linear-gradient(120deg, #fff3e0, #ffe9ec); }
+.ly-dark .ly-banner-cool   { background: linear-gradient(120deg, #232c3e, #2b2540); }
+.ly-dark .ly-banner-nature { background: linear-gradient(160deg, #1f2e26, #1e2a38); }
+.ly-dark .ly-banner-warm   { background: linear-gradient(120deg, #33271d, #331f22); }
+
+/* 两栏布局：窄屏（≤860px）自动塌缩为单列 */
+.ly-split { display: grid; gap: 16px; }
+.ly-split-archive { grid-template-columns: 320px 1fr; }
+.ly-split-wide    { grid-template-columns: 1fr 1.2fr; }
+@media (max-width: 860px) { .ly-split-archive, .ly-split-wide { grid-template-columns: 1fr; } }
 
 .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
 .sh-badge {
@@ -335,6 +406,17 @@ button { background: none; }
   transition: transform 0.25s, box-shadow 0.25s;
 }
 .warm-ball:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(244, 137, 78, 0.24); }
+/* 小暖悬浮球：暖光呼吸光晕（与登录页 hero 同款气质，不与 hover transform 冲突） */
+.warm-ball::before {
+  content: ''; position: absolute; inset: -7px; border-radius: 50%; z-index: -1;
+  background: radial-gradient(circle at 50% 50%,
+    color-mix(in srgb, var(--accent) 48%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 16%, transparent) 45%, transparent 72%);
+  animation: ballBreath 3.6s ease-in-out infinite;
+}
+.warm-ball:hover::before { animation-play-state: paused; }
+@keyframes ballBreath { 0%, 100% { opacity: .42; transform: scale(.85); } 50% { opacity: .9; transform: scale(1.16); } }
+@media (prefers-reduced-motion: reduce) { .warm-ball::before { animation: none; } }
 .warm-ball-tip {
   position: fixed; right: 100px; bottom: 40px; z-index: 60;
   background: var(--ly-surface); color: var(--ly-text); padding: 9px 14px;
@@ -406,6 +488,28 @@ button { background: none; }
 @media (max-width: 800px) { .ly-login-wrap { grid-template-columns: 1fr; } .ly-login-brand { display: none; } }
 
 /* ----------------------------- 杂项动画 ----------------------------- */
+/* 登录页「小暖」hero：轻柔漂浮 + 暖光呼吸光晕（对真实图片与 SVG 兜底都生效） */
+.ly-hero-anim {
+  position: relative; width: 150px; height: 150px;
+  display: flex; align-items: center; justify-content: center;
+  animation: heroFloat 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+.ly-hero-anim::before {
+  content: ''; position: absolute; inset: -20%; border-radius: 50%; z-index: 0;
+  background: radial-gradient(circle at 50% 48%,
+    color-mix(in srgb, var(--accent) 55%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 18%, transparent) 42%,
+    transparent 70%);
+  filter: blur(4px);
+  animation: heroGlow 3.6s ease-in-out infinite;
+}
+.ly-hero-anim > * { position: relative; z-index: 1; }
+@keyframes heroFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes heroGlow { 0%, 100% { opacity: .5; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) {
+  .ly-hero-anim, .ly-hero-anim::before { animation: none; }
+}
 .fade-in { animation: pageIn 0.5s ease; }
 .scale-in { animation: scaleIn 0.4s cubic-bezier(.22,1,.36,1); }
 @keyframes scaleIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }

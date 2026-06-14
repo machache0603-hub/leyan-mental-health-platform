@@ -1,0 +1,54 @@
+<!-- @dsCard group="Foundations" -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>色彩令牌</title>
+<style>
+:root{--primary:#ff8a5b;--primary-soft:#ffb088;--primary-deep:#f4703f;--accent:#ffc46b;--pink:#ff9eb1;--mint:#7fd1ae;
+--joy:#ffb74d;--love:#ff8aa0;--calm:#81c784;--low:#64b5f6;--anxious:#b39ddb;--sad:#90a4ae;
+--bg:#faf6f1;--surface:#fff;--surface2:#f6f1ea;--surface3:#efe8df;--text:#3f3833;--text2:#7a7065;--text3:#968b7e;--border:#ece3d8;
+--ok:#5cc08e;--warn:#ffb84d;--danger:#ff7a7a;}
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:28px;line-height:1.6}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--text3);font-size:13px;margin:0 0 22px}
+h2{font-size:12px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:24px 0 12px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface)}
+.chip-c{height:64px}.meta{padding:8px 10px}.nm{font-size:12.5px;font-weight:700}.hex{font-size:11px;color:var(--text3);font-family:Consolas,monospace}
+</style></head><body>
+<h1>🎨 色彩令牌</h1><p class="sub">乐颜设计系统 · 暖色调「像被阳光包裹」。语义色 + 状态色 + 六维心情色板。</p>
+
+<h2>品牌主色</h2>
+<div class="grid">
+  <div class="sw"><div class="chip-c" style="background:#ff8a5b"></div><div class="meta"><div class="nm">primary</div><div class="hex">#ff8a5b</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#f4703f"></div><div class="meta"><div class="nm">primary-deep</div><div class="hex">#f4703f</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#ffc46b"></div><div class="meta"><div class="nm">accent 暖金</div><div class="hex">#ffc46b</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#ff9eb1"></div><div class="meta"><div class="nm">pink 心动</div><div class="hex">#ff9eb1</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#7fd1ae"></div><div class="meta"><div class="nm">mint 平静</div><div class="hex">#7fd1ae</div></div></div>
+</div>
+
+<h2>心情色板（六维情绪）</h2>
+<div class="grid">
+  <div class="sw"><div class="chip-c" style="background:#ffb74d"></div><div class="meta"><div class="nm">😊 喜悦 joy</div><div class="hex">#ffb74d</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#ff8aa0"></div><div class="meta"><div class="nm">🥰 心动 love</div><div class="hex">#ff8aa0</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#81c784"></div><div class="meta"><div class="nm">😌 平静 calm</div><div class="hex">#81c784</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#64b5f6"></div><div class="meta"><div class="nm">😔 低落 low</div><div class="hex">#64b5f6</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#b39ddb"></div><div class="meta"><div class="nm">😰 焦虑 anxious</div><div class="hex">#b39ddb</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#90a4ae"></div><div class="meta"><div class="nm">😢 难过 sad</div><div class="hex">#90a4ae</div></div></div>
+</div>
+
+<h2>中性 / 表面</h2>
+<div class="grid">
+  <div class="sw"><div class="chip-c" style="background:#faf6f1"></div><div class="meta"><div class="nm">bg 奶油暖白</div><div class="hex">#faf6f1</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#ffffff"></div><div class="meta"><div class="nm">surface</div><div class="hex">#ffffff</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#f6f1ea"></div><div class="meta"><div class="nm">surface-2</div><div class="hex">#f6f1ea</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#efe8df"></div><div class="meta"><div class="nm">surface-3</div><div class="hex">#efe8df</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#3f3833"></div><div class="meta"><div class="nm">text</div><div class="hex">#3f3833</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#7a7065"></div><div class="meta"><div class="nm">text-2</div><div class="hex">#7a7065</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#968b7e"></div><div class="meta"><div class="nm">text-3</div><div class="hex">#968b7e</div></div></div>
+</div>
+
+<h2>状态色</h2>
+<div class="grid">
+  <div class="sw"><div class="chip-c" style="background:#5cc08e"></div><div class="meta"><div class="nm">ok</div><div class="hex">#5cc08e</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#ffb84d"></div><div class="meta"><div class="nm">warn</div><div class="hex">#ffb84d</div></div></div>
+  <div class="sw"><div class="chip-c" style="background:#ff7a7a"></div><div class="meta"><div class="nm">danger</div><div class="hex">#ff7a7a</div></div></div>
+</div>
+</body></html>

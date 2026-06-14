@@ -1,0 +1,30 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>按钮 Button</title>
+<style>
+:root{--primary:#ff8a5b;--primary-deep:#f4703f;--accent:#ffc46b;--surface2:#f6f1ea;--surface3:#efe8df;--text:#3f3833;--text3:#968b7e;--border:#ece3d8;--bg:#faf6f1;--r-pill:999px}
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:28px}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--text3);font-size:13px;margin:0 0 22px}
+h2{font-size:12px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:22px 0 12px;font-weight:700}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;padding:10px 18px;border-radius:var(--r-pill);font-size:13.5px;font-weight:600;border:none;cursor:pointer;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(244,112,63,.18)}
+.btn-ghost{background:var(--surface2);color:var(--text)}
+.btn-outline{border:1.5px solid var(--border);color:var(--text);background:transparent}
+.btn-sm{padding:6px 13px;font-size:12px}.btn-lg{padding:13px 26px;font-size:15px}
+.btn:focus-visible{outline:2px solid #ff7a45;outline-offset:2px}
+</style></head><body>
+<h1>🔘 按钮 Button</h1><p class="sub">三种层级（primary / ghost / outline）× 三种尺寸。药丸圆角，键盘聚焦显焦点环。</p>
+<h2>层级</h2>
+<div class="row">
+  <button class="btn btn-primary">🖌️ 主操作</button>
+  <button class="btn btn-ghost">次操作</button>
+  <button class="btn btn-outline">描边操作</button>
+</div>
+<h2>尺寸</h2>
+<div class="row">
+  <button class="btn btn-primary btn-sm">小 sm</button>
+  <button class="btn btn-primary">中 md</button>
+  <button class="btn btn-primary btn-lg">大 lg</button>
+</div>
+</body></html>

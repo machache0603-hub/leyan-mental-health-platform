@@ -1,0 +1,23 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>状态 States</title>
+<style>
+:root{--primary:#ff8a5b;--surface:#fff;--surface3:#efe8df;--text2:#7a7065;--text3:#968b7e;--border:#ece3d8;--bg:#faf6f1;--r-lg:24px}
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:#3f3833;margin:0;padding:28px}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--text3);font-size:13px;margin:0 0 22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg)}
+.state-box{text-align:center;padding:40px 20px;color:var(--text2)}
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--surface3);border-top-color:var(--primary);animation:spin .9s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state-emoji{font-size:46px;margin-bottom:10px;display:block;animation:floaty 3s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.state-text{font-size:14px}
+@media (prefers-reduced-motion:reduce){.spinner,.state-emoji{animation:none}}
+</style></head><body>
+<h1>⏳ 状态 · 加载 / 空</h1><p class="sub">暖心文案 + 柔和动效。加载态 role=status，尊重 reduced-motion。</p>
+<div class="grid">
+  <div class="card"><div class="state-box" role="status"><div class="spinner"></div><div class="state-text">正在为你准备一个温暖的角落~</div></div></div>
+  <div class="card"><div class="state-box"><span class="state-emoji">🌱</span><div class="state-text">这里还没有记录，开始你的第一个故事吧</div></div></div>
+</div>
+</body></html>

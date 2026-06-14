@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { TalkApi } from '../api';
 import { TalkRecord } from '../data';
-import { SectionHeader, WarmLoading, WarmEmpty, Modal, useAsync, MoodTag, Bar } from '../ui';
+import { SectionHeader, WarmLoading, WarmEmpty, WarmError, Modal, useAsync, MoodTag, Bar } from '../ui';
 import { Sparkline, RankBars, BarChart } from '../charts';
 import {
   classWeathers, studentProfiles, RISK_META, talkRecords as seedTalks, campActivities,
@@ -24,7 +24,7 @@ export const TeacherHome: React.FC = () => {
   ];
   return (
     <div className="ly-page-enter col gap-md">
-      <div className="card card-pad-lg" style={{ background: 'linear-gradient(120deg,#eaf6ff,#f3ecff)', border: 'none' }}>
+      <div className="card card-pad-lg ly-banner ly-banner-cool">
         <div className="chip chip-primary">教师工作台</div>
         <h1 style={{ fontSize: 23, marginTop: 12 }}>张老师，早安 ☀️</h1>
         <p className="muted" style={{ marginTop: 6 }}>你负责的 3 个班级，今天整体平稳。有 {high} 位同学需要你多一点关心。</p>
@@ -114,7 +114,7 @@ export const StudentArchive: React.FC = () => {
   return (
     <div className="ly-page-enter">
       <SectionHeader title="学生档案" sub="情绪趋势 · 预警历史 · 干预记录（数据已脱敏）" icon="🗂️" />
-      <div className="grid" style={{ gridTemplateColumns: '320px 1fr', gap: 16 }}>
+      <div className="ly-split ly-split-archive">
         <div className="card" style={{ alignSelf: 'start' }}>
           <div className="pill-tab" style={{ flexWrap: 'wrap', marginBottom: 12 }}>{filters.map(f => <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>{f}</button>)}</div>
           <div className="col gap-sm">
@@ -168,7 +168,7 @@ const TeacherAssistantInline: React.FC<{ student: StudentProfile }> = ({ student
   return (
     <div>
       <SectionHeader title="谈心切入点建议" sub="智能助手为这位同学生成的沟通思路" icon="💡" />
-      {topics.loading ? <WarmLoading /> : (
+      {topics.loading ? <WarmLoading /> : topics.error ? <WarmError onRetry={topics.reload} /> : (
         <div className="col gap-sm">
           {topics.data!.map((t, i) => (
             <div key={i} className="card" style={{ background: 'var(--ly-surface-2)', padding: 14 }}>
@@ -344,8 +344,8 @@ export const ClassTree: React.FC = () => {
   return (
     <div className="ly-page-enter col gap-md">
       <SectionHeader title="班级心理树" sub="全班合种一棵树，每个积极行为都让它长大一点" icon="🌳" />
-      <div className="grid g2" style={{ gridTemplateColumns: '1fr 1.2fr' }}>
-        <div className="card center col" style={{ background: 'linear-gradient(180deg,#eafbe7,#d7f0ff)', border: 'none', padding: 30 }}>
+      <div className="ly-split ly-split-wide">
+        <div className="card center col ly-banner ly-banner-nature" style={{ padding: 30 }}>
           <div style={{ fontSize: 120, lineHeight: 1, filter: 'drop-shadow(0 10px 20px rgba(80,160,90,.3))' }} className="state-emoji">{stage}</div>
           <div style={{ fontWeight: 800, fontSize: 18, marginTop: 12 }}>成长值 {growth} / 100</div>
           <div className="muted" style={{ fontSize: 13 }}>计算机研一·1班 的小树</div>
@@ -378,8 +378,8 @@ export const TeacherRest: React.FC = () => {
   return (
     <div className="ly-page-enter col gap-md">
       <SectionHeader title="教师休憩站" sub="照顾学生的人，也需要被照顾" icon="🍵" />
-      <div className="card card-pad-lg" style={{ background: 'linear-gradient(120deg,#fff3e0,#ffe9ec)', border: 'none' }}>
-        <h1 style={{ fontSize: 21, color: '#6b4a36', lineHeight: 1.6 }}>"老师，你今天也辛苦了。<br />记得对自己温柔一点。"</h1>
+      <div className="card card-pad-lg ly-banner ly-banner-warm">
+        <h1 style={{ fontSize: 21, color: 'var(--ly-text)', lineHeight: 1.6 }}>"老师，你今天也辛苦了。<br />记得对自己温柔一点。"</h1>
       </div>
       <div className="grid g2">
         {tips.map((t, i) => (

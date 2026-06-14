@@ -1,0 +1,32 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>标签 Chip</title>
+<style>
+:root{--primary-deep:#f4703f;--surface:#fff;--surface2:#f6f1ea;--text2:#7a7065;--text3:#968b7e;--border:#ece3d8;--bg:#faf6f1;--r-pill:999px}
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:#3f3833;margin:0;padding:28px}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--text3);font-size:13px;margin:0 0 22px}
+h2{font-size:12px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:22px 0 12px;font-weight:700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:var(--r-pill);font-size:12px;font-weight:600;background:var(--surface2);color:var(--text2)}
+.chip-primary{background:rgba(255,138,91,.14);color:var(--primary-deep)}
+.chip-ok{background:rgba(92,192,142,.16);color:#2e9367}
+.chip-warn{background:rgba(255,184,77,.18);color:#c98a1e}
+.chip-danger{background:rgba(255,122,122,.16);color:#d65656}
+.pill-tab{display:inline-flex;gap:6px;background:var(--surface2);padding:5px;border-radius:var(--r-pill)}
+.pill-tab button{padding:7px 16px;border:none;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;color:var(--text2);background:transparent;cursor:pointer;font-family:inherit}
+.pill-tab button.on{background:var(--surface);color:var(--primary-deep);box-shadow:0 1px 2px rgba(60,45,35,.08)}
+</style></head><body>
+<h1>🏷️ 标签 Chip & 分段 Tab</h1><p class="sub">语义化标签用于状态/分类；分段控件用于视图切换。</p>
+<h2>语义标签</h2>
+<div class="row">
+  <span class="chip">默认</span>
+  <span class="chip chip-primary">今日暖心签</span>
+  <span class="chip chip-ok">已记录 ✓</span>
+  <span class="chip chip-warn">💛 待关注</span>
+  <span class="chip chip-danger">高关注预警</span>
+</div>
+<h2>分段控件 Pill Tab</h2>
+<div class="row">
+  <div class="pill-tab"><button class="on">本周</button><button>本月</button><button>学期</button></div>
+</div>
+</body></html>

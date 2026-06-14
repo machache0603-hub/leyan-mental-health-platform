@@ -79,7 +79,7 @@ const sessions = new Map();          // token -> { user, expires }
 /* —— 接口鉴权表：除登录外全部要求 token；按控制器要求角色 —— */
 const PUBLIC_ROUTES = new Set(['AuthController.login']);
 const ROUTE_ROLE = {
-  MoodController: 'student', DiaryController: 'student', GalleryController: 'student', TreeholeController: 'student',
+  MoodController: 'student', DiaryController: 'student', GalleryController: 'student', TreeholeController: 'student', ChatController: 'student',
   TalkController: 'teacher',
   AlertController: 'admin', ConfigController: 'admin', ResourceController: 'admin',
   AuthController: 'any',
@@ -243,6 +243,36 @@ const routes = {
     const row = r.rows[0];
     row.colors = (row.colors || '').split(',').filter(Boolean);
     return row;
+  },
+
+  /* ---------- 悄悄话聊天记录（学生本人私有；危机会话打标记） ---------- */
+  async 'ChatController.listSessions'(p, ctx) {
+    const r = await q(`select id, to_char(start_time,'FMMM/FMDD') as date, preview, last_mood as "lastMood", crisis
+                       from ly_chat_session where student=$1 order by start_time desc, id desc`, [studentOf(ctx)]);
+    return r.rows.map((row) => ({ ...row, msgs: [] }));
+  },
+  async 'ChatController.getMessages'(p, ctx) {
+    const own = await q(`select 1 from ly_chat_session where id=$1 and student=$2`, [p.sessionId, studentOf(ctx)]);
+    if (!own.rowCount) return [];                       // 只能看本人会话
+    const r = await q(`select who, content as text, mood from ly_chat_msg where session=$1 order by id asc`, [p.sessionId]);
+    return r.rows;
+  },
+  async 'ChatController.saveTurn'(p, ctx) {
+    const student = studentOf(ctx);
+    const user = p.user || {}, warm = p.warm || {};
+    let sid = p.sessionId;
+    if (!sid) {
+      sid = 'cs-' + Date.now();
+      await q(`insert into ly_chat_session(id, student, preview, last_mood, crisis) values($1,$2,$3,$4,$5)`,
+        [sid, student, cap(user.text || '', 60), warm.mood || null, !!p.crisis]);
+    } else {
+      const own = await q(`select 1 from ly_chat_session where id=$1 and student=$2`, [sid, student]);
+      if (!own.rowCount) throw { code: 1, message: '会话不存在' };
+      await q(`update ly_chat_session set last_mood=$2, crisis = crisis or $3 where id=$1`, [sid, warm.mood || null, !!p.crisis]);
+    }
+    await q(`insert into ly_chat_msg(session, who, content, mood) values($1,'me',$2,$3)`, [sid, cap(user.text || '', 2000), user.mood || null]);
+    await q(`insert into ly_chat_msg(session, who, content, mood) values($1,'warm',$2,$3)`, [sid, cap(warm.text || '', 2000), warm.mood || null]);
+    return { sessionId: sid };
   },
 
   /* ---------- 资源中心（管理端 CRUD + 上下架） ---------- */

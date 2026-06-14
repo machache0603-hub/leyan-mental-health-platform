@@ -1,11 +1,11 @@
 /* ============================================================
    乐颜 · 应用外壳（导航 / 布局 / 小暖悬浮球）
    ============================================================ */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './theme.css';
 import { StoreProvider, useStore } from './store';
 import { Role } from './data';
-import { Modal } from './ui';
+import { Modal, ErrorBoundary } from './ui';
 import { Logo, Wordmark } from './Logo';
 import { Icon } from './Icon';
 import { IMG, Img } from './assets';
@@ -67,12 +67,12 @@ const NAV: Record<Role, NavConfig> = {
   },
 };
 
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<{ open?: boolean }> = ({ open }) => {
   const { role, route, go, dark, logout } = useStore();
   const cfg = NAV[role];
   const groups = Array.from(new Set(cfg.items.map(i => i.group)));
   return (
-    <aside className="ly-sidebar">
+    <aside className={`ly-sidebar ${open ? 'open' : ''}`}>
       <div className="ly-brand">
         <div className="ly-brand-logo">
           <Img src={IMG.logo} alt="乐颜" fallback={<Logo size={42} mood={dark ? 'low' : 'warm'} />} style={{ width: 44, height: 44, objectFit: 'contain' }} />
@@ -108,12 +108,13 @@ const Sidebar: React.FC = () => {
   );
 };
 
-const TopBar: React.FC<{ item: NavItem }> = ({ item }) => {
+const TopBar: React.FC<{ item: NavItem; onMenu?: () => void }> = ({ item, onMenu }) => {
   const { dark, setDark, role } = useStore();
   const sub: Record<Role, string> = { student: '今天也要好好的呀', teacher: '张老师 · 计算机学院辅导员', admin: '校心理健康教育中心' };
   return (
     <header className="ly-topbar">
       <div className="row gap-sm">
+        <button className="ly-icon-btn ly-burger" onClick={onMenu} aria-label="打开导航菜单"><Icon name="menu" size={18} /></button>
         <span style={{ color: 'var(--ly-primary-deep)', display: 'grid', placeItems: 'center' }}><Icon name={item.icon} size={20} /></span>
         <div>
           <div className="ly-topbar-title">{item.label}</div>
@@ -121,8 +122,8 @@ const TopBar: React.FC<{ item: NavItem }> = ({ item }) => {
         </div>
       </div>
       <div className="ly-topbar-actions">
-        <button className="ly-icon-btn" onClick={() => setDark(!dark)} title={dark ? '切换日间' : '切换夜间'}><Icon name={dark ? 'sun' : 'moon'} size={18} /></button>
-        <button className="ly-icon-btn" title="通知"><Icon name="bell" size={18} /></button>
+        <button className="ly-icon-btn" onClick={() => setDark(!dark)} aria-label={dark ? '切换日间模式' : '切换夜间模式'} title={dark ? '切换日间' : '切换夜间'}><Icon name={dark ? 'sun' : 'moon'} size={18} /></button>
+        <button className="ly-icon-btn" aria-label="通知" title="通知"><Icon name="bell" size={18} /></button>
         <div className="ly-avatar">{role === 'student' ? '颜' : role === 'teacher' ? '师' : '管'}</div>
       </div>
     </header>
@@ -175,14 +176,17 @@ const BgLayer: React.FC = () => {
 
 const Shell: React.FC = () => {
   const { role, route } = useStore();
+  const [navOpen, setNavOpen] = useState(false);
   const item = NAV[role].items.find(i => i.key === route) || NAV[role].items[0];
   const Comp = item.comp;
+  useEffect(() => { setNavOpen(false); }, [route]);   // 移动端：导航后自动收起抽屉
   return (
     <div className="ly-shell">
-      <Sidebar />
+      <Sidebar open={navOpen} />
+      {navOpen && <div className="ly-nav-scrim" onClick={() => setNavOpen(false)} />}
       <main className="ly-main">
-        <TopBar item={item} />
-        <div className="ly-page"><Comp /></div>
+        <TopBar item={item} onMenu={() => setNavOpen(true)} />
+        <div className="ly-page"><ErrorBoundary key={route}><Comp /></ErrorBoundary></div>
       </main>
       <WarmBall />
     </div>

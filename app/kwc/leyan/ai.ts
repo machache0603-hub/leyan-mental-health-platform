@@ -29,9 +29,10 @@ export interface EmotionResult {
   crisis: boolean;     // 是否触发危机预警
 }
 
-const NEG = ['难过', '崩溃', '撑不住', '累', '压力', '焦虑', '害怕', '孤独', '想哭', '没意义', '失眠', '睡不着', '烦', '绝望'];
-const CRISIS = ['不想活', '活不下去', '消失', '结束一切', '没有意义', '解脱'];
-const POS = ['开心', '高兴', '太好了', '通过', '接收', '成功', '喜欢', '幸福', '满足', '期待'];
+const NEG = ['难过', '崩溃', '撑不住', '撑不下去', '累', '好累', '压力', '焦虑', '害怕', '孤独', '孤单', '想哭', '哭', '没意义', '失眠', '睡不着', '烦', '烦躁', '绝望', '抑郁', '难受', '痛苦', '委屈', '无助', '迷茫', '内耗', '喘不过气', '提不起劲', '没动力', '摆烂', 'emo', '不开心', '空虚', '麻木'];
+// 危机词库（安全第一，尽量覆盖直接表达；命中即触发危机干预，宁可多报不可漏报）
+const CRISIS = ['想死', '不想活', '不想活了', '活不下去', '活着没意思', '活着没意义', '没意思活', '自杀', '轻生', '结束生命', '结束自己', '结束一切', '一了百了', '了结自己', '解脱', '消失算了', '死了算了', '不想醒来', '跳楼', '离开这个世界', '活着太累', '撑不下去了'];
+const POS = ['开心', '高兴', '快乐', '太好了', '通过', '录取', '接收', '成功', '喜欢', '幸福', '满足', '期待', '顺利', '治愈', '温暖', '感动', '放松', '舒服', '棒'];
 
 async function detectEmotionMock(text: string): Promise<EmotionResult> {
   await sleep(280);
@@ -67,31 +68,58 @@ const EMPATHY: Record<MoodKey, string[]> = {
 };
 
 const FOLLOW: Record<MoodKey, string[]> = {
-  joy: ['今天还有什么开心的小事吗？'],
-  love: ['是什么人或事让你有这种感觉呀？'],
-  calm: ['今天过得怎么样？'],
-  low: ['如果给这份低落打个分，1 到 10，你会打几分？'],
-  anxious: ['现在最让你担心的是哪一件事？我们先从它聊起。'],
-  sad: ['要不要我陪你做一个一分钟的深呼吸？'],
+  joy: ['今天还有什么开心的小事吗？', '这份好心情，要不要记进小确幸日记？', '愿意多和我分享一点吗？'],
+  love: ['是什么人或事让你有这种感觉呀？', '能被这样的情绪填满，真好。', '想把这份心动记下来吗？'],
+  calm: ['今天过得怎么样？', '有什么想和我慢慢聊聊的吗？', '此刻的你，心里在想些什么呢？'],
+  low: ['如果给这份低落打个分，1 到 10，你会打几分？', '愿意和我说说，是什么让你提不起劲吗？', '没关系的，我们慢慢来，你想从哪件事说起？'],
+  anxious: ['现在最让你担心的是哪一件事？我们先从它聊起。', '先深呼吸一下，我们一件一件来，好吗？', '把压在心上的事说出来，会轻一点。'],
+  sad: ['要不要我陪你做一个一分钟的深呼吸？', '难过的时候不用一个人扛，我在的。', '愿意多和我说说，是什么让你这么难受吗？'],
 };
+
+const GREETINGS = ['hi', 'hello', 'hey', '你好', '您好', '在吗', '在么', '在不在', '嗨', '哈喽', '哈啰', '早', '早安', '早上好', '中午好', '下午好', '晚上好', '晚安'];
+function isGreeting(text: string): boolean {
+  const s = (text || '').trim().toLowerCase().replace(/[!！。.~～、,，\s]/g, '');
+  return s.length <= 6 && GREETINGS.some(g => s === g || s.startsWith(g));
+}
+
+const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 async function smallTalkMock(text: string): Promise<ChatReply> {
   const emo = await detectEmotionMock(text);
   await sleep(420);
-  const e = EMPATHY[emo.mood][Math.floor(Math.random() * EMPATHY[emo.mood].length)];
-  const f = FOLLOW[emo.mood][0];
-  let text2 = `${e} ${f}`;
+
+  // ① 危机优先：温柔确认安全 + 24h 求助方向 + 主动转人工（绝不被淹没在普通回复里）
   if (emo.crisis) {
-    text2 = '我听到了你的痛苦，谢谢你愿意告诉我。你不是一个人，请一定记得：校园心理热线 0571-8888XXXX 24 小时都在。要不要我现在帮你联系信任的老师？';
+    return {
+      text: '我听到了你的痛苦，谢谢你愿意把这么重的话告诉我。此刻的感受很难熬，但你能说出来，已经很勇敢了。你不是一个人——请一定记得：全国心理援助热线 12356 是 24 小时免费的，随时可以拨。如果你愿意，我现在就帮你联系一位信任的老师，好吗？',
+      mood: 'sad',
+      crisis: true,
+      suggestRelax: true,
+      quickReplies: ['我愿意找人聊聊', '陪我做个深呼吸', '我先缓一缓'],
+    };
   }
+
+  // ② 问候：温暖的开场，而不是套话
+  if (isGreeting(text)) {
+    return {
+      text: '嗨，很高兴你来找我说说话～我是小暖，一盏一直为你亮着的小夜灯。今天过得还好吗？开心的、烦心的，都可以讲给我听。',
+      mood: 'calm',
+      crisis: false,
+      suggestRelax: false,
+      quickReplies: ['今天有点累', '想说点开心的事', '只是想有人陪'],
+    };
+  }
+
+  // ③ 情绪自适应回应（共情 + 追问，均随机选取，减少重复感）
+  const low = emo.mood === 'low' || emo.mood === 'sad' || emo.mood === 'anxious';
   return {
-    text: text2,
+    text: `${pick(EMPATHY[emo.mood])} ${pick(FOLLOW[emo.mood])}`,
     mood: emo.mood,
-    crisis: emo.crisis,
-    suggestRelax: emo.mood === 'anxious' || emo.mood === 'sad' || emo.crisis,
-    quickReplies: emo.crisis
-      ? ['我想找人聊聊', '帮我做深呼吸', '我再缓一缓']
-      : ['嗯，是这样', '其实还有别的事', '陪我做个放松练习'],
+    crisis: false,
+    suggestRelax: low,
+    quickReplies: low
+      ? ['其实我有点难受', '陪我做个放松练习', '想听点温柔的话']
+      : ['嗯，是这样', '还有别的事想说', '谢谢你听我说'],
   };
 }
 
@@ -233,6 +261,9 @@ export const smallTalk = (text: string) =>
   dispatch(() => LLM.smallTalk(text), () => smallTalkMock(text));
 export const interpretPainting = (prompt: string) =>
   dispatch(() => LLM.interpretPainting(prompt), () => interpretPaintingMock(prompt));
+/* 文生图：llm 模式经代理调 StepFun 返回图片 URL；mock 或失败时返回 null（UI 回退到渐变占位画布） */
+export const generateArt = (prompt: string): Promise<string | null> =>
+  dispatch<string | null>(() => LLM.generateArt(prompt), async () => null);
 export const forecastMood = (history: { mood: MoodKey }[]) =>
   dispatch(() => LLM.forecastMood(history), () => forecastMoodMock(history));
 export const genTalkTopics = (s: StudentProfile) =>

@@ -1,0 +1,36 @@
+<!-- @dsCard group="Foundations" -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>间距与圆角</title>
+<style>
+:root{--bg:#faf6f1;--surface:#fff;--text:#3f3833;--text3:#968b7e;--border:#ece3d8;--primary:#ff8a5b;--primary-soft:#ffb088}
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:28px}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--text3);font-size:13px;margin:0 0 22px}
+h2{font-size:12px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:22px 0 12px;font-weight:700}
+.bars .b{display:flex;align-items:center;gap:14px;margin:8px 0}
+.bars .b .lab{width:120px;font-family:Consolas,monospace;font-size:12px;color:var(--text3)}
+.bars .b .box{height:18px;background:linear-gradient(90deg,var(--primary),var(--primary-soft));border-radius:5px}
+.radii{display:flex;gap:18px;flex-wrap:wrap}
+.radii .r{text-align:center}
+.radii .r .demo{width:84px;height:64px;background:var(--surface);border:1.5px solid var(--primary-soft)}
+.radii .r .lab{font-size:11px;color:var(--text3);margin-top:6px;font-family:Consolas,monospace}
+</style></head><body>
+<h1>📐 间距与圆角</h1><p class="sub">8pt 基准间距尺度；圆角自小到药丸形，营造柔和治愈观感。</p>
+<h2>间距 spacing</h2>
+<div class="bars">
+  <div class="b"><span class="lab">--sp-1 · 4px</span><span class="box" style="width:4px"></span></div>
+  <div class="b"><span class="lab">--sp-2 · 8px</span><span class="box" style="width:8px"></span></div>
+  <div class="b"><span class="lab">--sp-3 · 12px</span><span class="box" style="width:12px"></span></div>
+  <div class="b"><span class="lab">--sp-4 · 16px</span><span class="box" style="width:16px"></span></div>
+  <div class="b"><span class="lab">--sp-5 · 24px</span><span class="box" style="width:24px"></span></div>
+  <div class="b"><span class="lab">--sp-6 · 32px</span><span class="box" style="width:32px"></span></div>
+  <div class="b"><span class="lab">--sp-8 · 48px</span><span class="box" style="width:48px"></span></div>
+</div>
+<h2>圆角 radius</h2>
+<div class="radii">
+  <div class="r"><div class="demo" style="border-radius:10px"></div><div class="lab">--r-sm 10</div></div>
+  <div class="r"><div class="demo" style="border-radius:16px"></div><div class="lab">--r-md 16</div></div>
+  <div class="r"><div class="demo" style="border-radius:24px"></div><div class="lab">--r-lg 24</div></div>
+  <div class="r"><div class="demo" style="border-radius:32px"></div><div class="lab">--r-xl 32</div></div>
+  <div class="r"><div class="demo" style="border-radius:999px"></div><div class="lab">--r-pill</div></div>
+</div>
+</body></html>

@@ -1,6 +1,6 @@
 /* 共享 UI 组件：卡片、状态、心情、按钮、弹窗、异步 hook 等 */
 import React, { useEffect, useRef, useState } from 'react';
-import { WARM_LOADING, WARM_EMPTY, MOODS, MoodKey, moodOf } from './data';
+import { WARM_LOADING, WARM_EMPTY, WARM_ERROR, MOODS, MoodKey, moodOf } from './data';
 import { IMG, Img } from './assets';
 
 /* 通用区块标题 */
@@ -16,8 +16,8 @@ export const SectionHeader: React.FC<{ title: React.ReactNode; sub?: string; ico
 
 /* 暖心加载态 */
 export const WarmLoading: React.FC<{ text?: string }> = ({ text }) => (
-  <div className="state-box">
-    <div className="spinner" />
+  <div className="state-box" role="status" aria-live="polite">
+    <div className="spinner" aria-hidden="true" />
     <div className="state-text">{text || WARM_LOADING}</div>
   </div>
 );
@@ -28,6 +28,15 @@ export const WarmEmpty: React.FC<{ emoji?: string; text?: string }> = ({ emoji =
     <Img src={IMG.empty} alt="" fallback={<span className="state-emoji">{emoji}</span>}
       style={{ width: 120, height: 120, objectFit: 'contain', margin: '0 auto 6px', display: 'block' }} />
     <div className="state-text">{text || WARM_EMPTY}</div>
+  </div>
+);
+
+/* 暖心错误态（可选重试） */
+export const WarmError: React.FC<{ text?: string; onRetry?: () => void }> = ({ text, onRetry }) => (
+  <div className="state-box" role="alert">
+    <span className="state-emoji">🌧️</span>
+    <div className="state-text">{text || WARM_ERROR}</div>
+    {onRetry && <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={onRetry}>重试一下</button>}
   </div>
 );
 
@@ -44,9 +53,14 @@ export const StatCard: React.FC<{ value: React.ReactNode; label: string; icon?: 
 );
 
 /* 进度条 */
-export const Bar: React.FC<{ pct: number; color?: string }> = ({ pct, color }) => (
-  <div className="bar"><i style={{ width: `${Math.max(2, Math.min(100, pct))}%`, background: color }} /></div>
-);
+export const Bar: React.FC<{ pct: number; color?: string; label?: string }> = ({ pct, color, label }) => {
+  const v = Math.round(Math.max(0, Math.min(100, pct)));
+  return (
+    <div className="bar" role="progressbar" aria-valuenow={v} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+      <i style={{ width: `${Math.max(2, v)}%`, background: color }} />
+    </div>
+  );
+};
 
 /* 心情选择器 */
 export const MoodPicker: React.FC<{ value: MoodKey | null; onChange: (m: MoodKey) => void; size?: number }> = ({ value, onChange, size = 56 }) => (
@@ -54,10 +68,10 @@ export const MoodPicker: React.FC<{ value: MoodKey | null; onChange: (m: MoodKey
     {MOODS.map(m => {
       const on = value === m.key;
       return (
-        <button key={m.key} onClick={() => onChange(m.key)}
+        <button key={m.key} onClick={() => onChange(m.key)} aria-pressed={on} aria-label={`心情：${m.label}`}
           style={{
             width: size, height: size, borderRadius: 18, fontSize: size * 0.42,
-            display: 'grid', placeItems: 'center', transition: 'all .2s',
+            display: 'grid', placeItems: 'center', transition: 'all var(--dur-base) var(--ease-spring)',
             background: on ? m.color : 'var(--ly-surface-2)',
             boxShadow: on ? '0 8px 18px rgba(0,0,0,.12)' : 'none',
             transform: on ? 'translateY(-4px) scale(1.06)' : 'none',
@@ -79,13 +93,24 @@ export const MoodTag: React.FC<{ mood: MoodKey }> = ({ mood }) => {
 
 /* 弹窗 */
 export const Modal: React.FC<{ open: boolean; onClose: () => void; title?: string; children: React.ReactNode; width?: number }> = ({ open, onClose, title, children, width = 520 }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';           // 锁背景滚动
+    ref.current?.focus();                               // 打开即把焦点移入弹窗
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(40,30,25,.42)', backdropFilter: 'blur(3px)', zIndex: 80, display: 'grid', placeItems: 'center', padding: 20 }}>
-      <div className="scale-in" onClick={e => e.stopPropagation()} style={{ background: 'var(--ly-surface)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--ly-shadow-lg)', width, maxWidth: '100%', maxHeight: '88vh', overflow: 'auto', padding: 26 }}>
+      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title || '对话框'}
+        className="scale-in" onClick={e => e.stopPropagation()} style={{ background: 'var(--ly-surface)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--ly-shadow-lg)', width, maxWidth: '100%', maxHeight: '88vh', overflow: 'auto', padding: 26, outline: 'none' }}>
         {title && <div className="row-between" style={{ marginBottom: 16 }}>
           <div className="section-title">{title}</div>
-          <button className="ly-icon-btn" onClick={onClose}>✕</button>
+          <button className="ly-icon-btn" onClick={onClose} aria-label="关闭">✕</button>
         </div>}
         {children}
       </div>
@@ -93,21 +118,46 @@ export const Modal: React.FC<{ open: boolean; onClose: () => void; title?: strin
   );
 };
 
-/* 通用异步 hook：自动 loading / data，含暖心加载文案 */
-export function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList = []): { loading: boolean; data: T | null; reload: () => void } {
+/* 错误边界：单个功能渲染崩溃时只回退本页，不白屏全站。
+   外层用 key={route} 包裹即可在切换页面时自动复位。 */
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: React.ErrorInfo) { console.error('[乐颜] 页面渲染出错：', error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="state-box" role="alert">
+          <span className="state-emoji">🌧️</span>
+          <div className="state-text">这个页面遇到了一点小问题，正在为你兜底</div>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }} onClick={() => this.setState({ error: null })}>重新加载本页</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* 通用异步 hook：自动 loading / data / error，含暖心加载文案。
+   关键修复：捕获 reject —— 否则失败会永远停在加载态（无限 spinner）。 */
+export function useAsync<T>(fn: () => Promise<T>, deps: React.DependencyList = []): { loading: boolean; data: T | null; error: unknown; reload: () => void } {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [n, setN] = useState(0);
   const fnRef = useRef(fn);
   fnRef.current = fn;
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    fnRef.current().then(d => { if (alive) { setData(d); setLoading(false); } });
+    setError(null);
+    fnRef.current()
+      .then(d => { if (alive) { setData(d); setLoading(false); } })
+      .catch(e => { if (alive) { setError(e); setLoading(false); } });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, n]);
-  return { loading, data, reload: () => setN(x => x + 1) };
+  return { loading, data, error, reload: () => setN(x => x + 1) };
 }
 
 /* 打字机效果文本 */

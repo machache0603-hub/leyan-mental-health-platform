@@ -1,0 +1,37 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>心情系统 Mood</title>
+<style>
+:root{--surface2:#f6f1ea;--text3:#968b7e;--primary-deep:#f4703f;--bg:#faf6f1;
+--joy:#ffb74d;--love:#ff8aa0;--calm:#81c784;--low:#64b5f6;--anxious:#b39ddb;--sad:#90a4ae;--r-pill:999px}
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:#3f3833;margin:0;padding:28px}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--text3);font-size:13px;margin:0 0 22px}
+h2{font-size:12px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:22px 0 14px;font-weight:700}
+.picker{display:flex;gap:10px;flex-wrap:wrap}
+.mood{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;font-size:24px;position:relative;border:none;cursor:pointer}
+.mood .l{position:absolute;bottom:-20px;font-size:11px;color:var(--text3);left:0;right:0;text-align:center}
+.mood.on{transform:translateY(-4px) scale(1.06);box-shadow:0 8px 18px rgba(0,0,0,.12)}
+.mood.on .l{color:var(--primary-deep);font-weight:700}
+.tags{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:var(--r-pill);font-size:12px;font-weight:600;background:transparent}
+</style></head><body>
+<h1>🎐 心情系统 Mood</h1><p class="sub">六维情绪（喜悦/心动/平静/低落/焦虑/难过）贯穿打卡、花园、预警。色 + emoji + 文案三位一体。</p>
+<h2>心情选择器 MoodPicker（calm 选中态）</h2>
+<div class="picker">
+  <button class="mood" style="background:var(--surface2)">😊<span class="l">喜悦</span></button>
+  <button class="mood" style="background:var(--surface2)">🥰<span class="l">心动</span></button>
+  <button class="mood on" style="background:var(--calm)">😌<span class="l">平静</span></button>
+  <button class="mood" style="background:var(--surface2)">😔<span class="l">低落</span></button>
+  <button class="mood" style="background:var(--surface2)">😰<span class="l">焦虑</span></button>
+  <button class="mood" style="background:var(--surface2)">😢<span class="l">难过</span></button>
+</div>
+<h2 style="margin-top:42px">心情小标 MoodTag</h2>
+<div class="tags">
+  <span class="tag" style="color:var(--joy)">😊 喜悦</span>
+  <span class="tag" style="color:var(--love)">🥰 心动</span>
+  <span class="tag" style="color:var(--calm)">😌 平静</span>
+  <span class="tag" style="color:var(--low)">😔 低落</span>
+  <span class="tag" style="color:var(--anxious)">😰 焦虑</span>
+  <span class="tag" style="color:var(--sad)">😢 难过</span>
+</div>
+</body></html>

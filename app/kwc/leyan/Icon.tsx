@@ -7,6 +7,7 @@ import React from 'react';
 const P: Record<string, React.ReactNode> = {
   // —— 通用 / 顶栏 ——
   home: <path d="M4 11.5 12 4l8 7.5M6 10v9h12v-9" />,
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   sun: <><circle cx="12" cy="12" r="4.2" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" /></>,
   moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.3 6.3 0 0 0 10.5 10.5Z" />,
   bell: <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2H4.5L6 16ZM10 19a2 2 0 0 0 4 0" />,

@@ -3,17 +3,17 @@
    ============================================================ */
 import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
-import { SectionHeader, WarmLoading, WarmEmpty, MoodPicker, MoodTag, Modal, useAsync, Typing, Bar } from '../ui';
+import { SectionHeader, WarmLoading, WarmEmpty, WarmError, MoodPicker, MoodTag, Modal, useAsync, Typing, Bar } from '../ui';
 import { LineChart, Sparkline } from '../charts';
 import {
   MOODS, moodOf, MoodKey, WARM_NOTES, myMoodHistory, LAST_14_DAYS, gardenStories,
   treeholePosts as seedPosts, diaryEntries as seedDiary, radioTracks, workshops, knowledgeList, myMilestones,
 } from '../data';
-import { smallTalk, ChatReply, interpretPainting, forecastMood, MoodForecast } from '../ai';
+import { smallTalk, ChatReply, interpretPainting, generateArt, forecastMood, MoodForecast } from '../ai';
 import { Icon } from '../Icon';
 import { Logo } from '../Logo';
 import { IMG, Img } from '../assets';
-import { DiaryApi, TreeholeApi, MoodApi, GalleryApi, Artwork } from '../api';
+import { DiaryApi, TreeholeApi, MoodApi, GalleryApi, ChatApi, Artwork, ChatSession, ChatMsg } from '../api';
 import { TreeholePost, DiaryEntry } from '../data';
 
 /* ----------------------------------------------------------------
@@ -31,6 +31,9 @@ export const ChatPanel: React.FC<{ compact?: boolean }> = ({ compact }) => {
   const [thinking, setThinking] = useState(false);
   const [ballMood, setBallMood] = useState<MoodKey>('joy');
   const [relax, setRelax] = useState(false);
+  const [crisis, setCrisis] = useState(false);          // 危机信号：触发安全干预卡
+  const [replies, setReplies] = useState<string[]>([]); // 小暖生成的情境化快捷回复
+  const [sessionId, setSessionId] = useState<string | null>(null); // 当前会话（用于落库聊天记录）
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => { scroller.current?.scrollTo({ top: 1e6, behavior: 'smooth' }); }, [msgs, thinking]);
@@ -43,8 +46,17 @@ export const ChatPanel: React.FC<{ compact?: boolean }> = ({ compact }) => {
     const reply: ChatReply = await smallTalk(text);
     setBallMood(reply.mood);
     setRelax(reply.suggestRelax);
+    setCrisis(reply.crisis);
+    setReplies(Array.isArray(reply.quickReplies) ? reply.quickReplies : []);
     setThinking(false);
     setMsgs(m => [...m, { id: ++mid, who: 'warm', text: reply.text, mood: reply.mood, typing: true }]);
+    // 落库本轮对话（用户一句 + 小暖一句），供「聊天记录」回看；失败静默（离线/无后端）
+    ChatApi.saveTurn({
+      sessionId,
+      user: { who: 'me', text },
+      warm: { who: 'warm', text: reply.text, mood: reply.mood },
+      crisis: reply.crisis,
+    }).then(r => { if (r?.sessionId) setSessionId(r.sessionId); }).catch(() => { /* 离线忽略 */ });
   };
 
   const m = moodOf(ballMood);
@@ -74,7 +86,7 @@ export const ChatPanel: React.FC<{ compact?: boolean }> = ({ compact }) => {
             <div style={{
               padding: '12px 16px', fontSize: 14, lineHeight: 1.7,
               borderRadius: msg.who === 'me' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-              background: msg.who === 'me' ? 'linear-gradient(120deg, var(--ly-primary), var(--ly-primary-soft))' : 'var(--ly-surface-2)',
+              background: msg.who === 'me' ? 'var(--ly-bubble-me)' : 'var(--ly-surface-2)',
               color: msg.who === 'me' ? '#fff' : 'var(--ly-text)',
               boxShadow: 'var(--ly-shadow-sm)',
               backgroundImage: msg.who === 'warm' ? 'repeating-linear-gradient(var(--ly-surface-2), var(--ly-surface-2) 27px, var(--ly-border) 28px)' : undefined,
@@ -84,7 +96,18 @@ export const ChatPanel: React.FC<{ compact?: boolean }> = ({ compact }) => {
           </div>
         ))}
         {thinking && <div style={{ alignSelf: 'flex-start' }} className="chip">小暖正在认真听你说… 💭</div>}
-        {relax && !thinking && (
+        {crisis && !thinking && (
+          <div className="card scale-in" role="alert" style={{ alignSelf: 'stretch', padding: 16, background: 'color-mix(in srgb, var(--danger) 9%, var(--ly-surface))', border: '1px solid color-mix(in srgb, var(--danger) 38%, transparent)' }}>
+            <div style={{ fontWeight: 800, marginBottom: 6, color: 'var(--danger)' }}>💛 你的安全，比什么都重要</div>
+            <div style={{ fontSize: 13, lineHeight: 1.75, marginBottom: 12 }}>谢谢你愿意把这些告诉小暖。你不是一个人——如果此刻真的很难熬，请一定联系下面的专业支持，他们 24 小时都在，随时接住你。</div>
+            <div className="row wrap gap-sm">
+              <a className="btn btn-primary btn-sm" href="tel:12356" style={{ textDecoration: 'none' }}>📞 全国心理援助热线 12356</a>
+              <button className="btn btn-outline btn-sm" onClick={() => { setChatOpen(false); go('s-workshop'); }}>🫧 先陪我做个深呼吸</button>
+            </div>
+            <div className="dim" style={{ fontSize: 11.5, marginTop: 10 }}>小暖已（在真实部署中经苍穹工作流）请信任的老师悄悄多关心你一点。</div>
+          </div>
+        )}
+        {relax && !crisis && !thinking && (
           <div className="card scale-in" style={{ alignSelf: 'flex-start', padding: 14, background: 'var(--ly-surface-3)' }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>🫧 要不要一起放松一下？</div>
             <div className="dim" style={{ fontSize: 12.5, marginBottom: 10 }}>我感觉你有点累了，做个一分钟练习吧。</div>
@@ -92,6 +115,16 @@ export const ChatPanel: React.FC<{ compact?: boolean }> = ({ compact }) => {
           </div>
         )}
       </div>
+
+      {/* 小暖生成的情境化快捷回复（随对话动态变化） */}
+      {replies.length > 0 && !thinking && (
+        <div className="row wrap gap-xs scale-in" style={{ padding: '10px 4px 0' }}>
+          <span className="dim" style={{ fontSize: 11.5, alignSelf: 'center', marginRight: 2 }}>💡 接着说：</span>
+          {replies.map((q, i) => (
+            <button key={i} className="chip chip-primary" onClick={() => send(q)}>{q}</button>
+          ))}
+        </div>
+      )}
 
       {/* 快捷情绪 + 入口 */}
       <div className="row wrap gap-xs" style={{ padding: '10px 4px 8px' }}>
@@ -112,12 +145,63 @@ export const ChatPanel: React.FC<{ compact?: boolean }> = ({ compact }) => {
   );
 };
 
-export const SecretTalk: React.FC = () => (
-  <div className="ly-page-enter">
-    <SectionHeader title="悄悄话" sub="和小暖聊聊，这里只有你和它。可匿名。" icon="💬" />
-    <div className="card card-pad-lg"><ChatPanel /></div>
-  </div>
-);
+/* 悄悄话聊天记录（仅本人可见；危机会话打"关注"标记） */
+const ChatHistoryModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [active, setActive] = useState<ChatSession | null>(null);
+  const [msgs, setMsgs] = useState<ChatMsg[]>([]);
+  useEffect(() => {
+    if (open) { setActive(null); ChatApi.listSessions().then(setSessions).catch(() => setSessions([])); }
+  }, [open]);
+  const openSession = (s: ChatSession) => { setActive(s); ChatApi.getMessages(s.id).then(setMsgs).catch(() => setMsgs([])); };
+  return (
+    <Modal open={open} onClose={onClose} title="悄悄话记录 · 只有你能看到" width={520}>
+      {active ? (
+        <div>
+          <button className="chip" onClick={() => setActive(null)}>← 返回列表</button>
+          <div className="col gap-sm" style={{ marginTop: 12 }}>
+            {msgs.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.who === 'me' ? 'flex-end' : 'flex-start', maxWidth: '82%',
+                padding: '10px 14px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.6,
+                background: m.who === 'me' ? 'var(--ly-bubble-me)' : 'var(--ly-surface-2)',
+                color: m.who === 'me' ? '#fff' : 'var(--ly-text)',
+              }}>{m.text}</div>
+            ))}
+          </div>
+        </div>
+      ) : sessions.length === 0 ? (
+        <WarmEmpty emoji="💬" text="还没有聊天记录，去和小暖说说话吧" />
+      ) : (
+        <div className="col gap-sm">
+          {sessions.map(s => (
+            <button key={s.id} className="card hover" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => openSession(s)}>
+              <div className="row-between gap-sm">
+                <span style={{ fontWeight: 700, fontSize: 13.5 }}>{s.preview || '（无内容）'}</span>
+                {s.crisis && <span className="chip chip-danger">关注</span>}
+              </div>
+              <div className="dim" style={{ fontSize: 12, marginTop: 4 }}>
+                {s.date}{s.lastMood ? ` · ${moodOf(s.lastMood).emoji} ${moodOf(s.lastMood).label}` : ''}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+};
+
+export const SecretTalk: React.FC = () => {
+  const [histOpen, setHistOpen] = useState(false);
+  return (
+    <div className="ly-page-enter">
+      <SectionHeader title="悄悄话" sub="和小暖聊聊，这里只有你和它。可匿名。" icon="💬"
+        right={<button className="chip" onClick={() => setHistOpen(true)}>📜 聊天记录</button>} />
+      <div className="card card-pad-lg"><ChatPanel /></div>
+      <ChatHistoryModal open={histOpen} onClose={() => setHistOpen(false)} />
+    </div>
+  );
+};
 
 /* ----------------------------------------------------------------
    ① 暖心首页
@@ -248,7 +332,7 @@ export const Garden: React.FC = () => {
         {/* 未来天气预报 */}
         <div className="card">
           <SectionHeader title="未来心情天气预报" sub="基于你的情绪轨迹智能预测" icon="🔮" />
-          {fc.loading ? <WarmLoading /> : (
+          {fc.loading ? <WarmLoading /> : fc.error ? <WarmError onRetry={fc.reload} /> : (
             <>
               <div className="row wrap" style={{ justifyContent: 'space-between' }}>
                 {fc.data!.forecast.map((f: MoodForecast, i) => (
@@ -305,27 +389,31 @@ const PALETTES: Record<string, string[]> = {
   暮紫: ['#e0c3fc', '#c8a2f0', '#a87fe0', '#8e6fd0'],
   森野: ['#d8f3dc', '#b7e4c7', '#74c69d', '#40916c'],
 };
+/* 把用户的一句话 + 色调/冷暖，组织成给文生图模型的画面描述 */
+const buildArtPrompt = (text: string, palette: string, warm: number) =>
+  `水彩治愈系插画，柔和细腻，情绪疗愈主题：${text}。色调「${palette}」，整体${warm >= 50 ? '温暖明亮' : '清冷宁静'}，宁静、留白、艺术质感，不含任何文字与水印。`.slice(0, 500);
 export const ArtStudio: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [palette, setPalette] = useState('暖阳');
   const [bright, setBright] = useState(60);
   const [warm, setWarm] = useState(70);
-  const [painting, setPainting] = useState<{ colors: string[]; interp: string } | null>(null);
+  const [painting, setPainting] = useState<{ colors: string[]; interp: string; image?: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [gallery, setGallery] = useState<Artwork[]>([]);
   useEffect(() => { GalleryApi.list().then(setGallery).catch(() => { /* 离线忽略 */ }); }, []);
-  const saveToGallery = () => {
-    if (!painting) return;
-    GalleryApi.add({ prompt: prompt || palette, palette, colors: painting.colors, bright, warm, interp: painting.interp })
-      .then(item => setGallery(g => [item, ...g])).catch(() => { /* 离线忽略 */ });
-  };
-
   const draw = async () => {
     setBusy(true); setPainting(null);
-    const interp = await interpretPainting(prompt || palette);
     const cols = PALETTES[palette];
-    setPainting({ colors: cols, interp });
+    // 并行：小暖文字解读 + StepFun 真实生图（任一失败都不影响另一个；生图失败回退渐变占位）
+    const [interp, image] = await Promise.all([
+      interpretPainting(prompt || palette),
+      generateArt(buildArtPrompt(prompt || palette, palette, warm)).catch(() => null),
+    ]);
+    setPainting({ colors: cols, interp, image });
     setBusy(false);
+    // 生成即自动收进画廊（符合“画过就在画廊里”的直觉，无需再手动保存）
+    GalleryApi.add({ prompt: prompt || palette, palette, colors: cols, bright, warm, interp, image: image || undefined })
+      .then(item => setGallery(g => [item, ...g])).catch(() => { /* 离线忽略 */ });
   };
   const KEYWORDS = ['平静的海', '温暖的拥抱', '雨后的天空', '深夜的星河', '一束光'];
 
@@ -367,14 +455,19 @@ export const ArtStudio: React.FC = () => {
             display: 'grid', placeItems: 'center', transition: 'all .8s',
           }}>
             {!painting && !busy && <span className="dim">画布在等待你的心情…</span>}
-            {busy && <WarmLoading text="正在把你的心情调成颜色…" />}
-            {painting && <span style={{ fontSize: 60, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,.2))' }}>🌊</span>}
+            {busy && <WarmLoading text="正在把你的心情画出来…" />}
+            {painting && painting.image && (
+              <Img src={painting.image} alt="心情画作"
+                fallback={<span style={{ fontSize: 60, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,.2))' }}>🌊</span>}
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            )}
+            {painting && !painting.image && <span style={{ fontSize: 60, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,.2))' }}>🌊</span>}
           </div>
           {painting && (
             <div className="card scale-in" style={{ background: 'var(--ly-surface-2)', padding: 14, marginTop: 12 }}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>🪄 小暖的温柔解读</div>
               <p style={{ fontSize: 13, lineHeight: 1.7 }}>{painting.interp}</p>
-              <button className="btn btn-ghost btn-sm mt-sm" onClick={saveToGallery}>💾 保存到画廊</button>
+              <span className="chip chip-ok" style={{ marginTop: 10 }}>🖼️ 已收进下方「我的画廊」</span>
             </div>
           )}
         </div>
@@ -387,7 +480,11 @@ export const ArtStudio: React.FC = () => {
           <div className="row wrap gap-sm">
             {gallery.map((g, i) => (
               <div key={i} className="scale-in" style={{ width: 130 }}>
-                <div style={{ height: 90, borderRadius: 12, background: `linear-gradient(160deg, ${g.colors[1]}, ${g.colors[3]})` }} />
+                {g.image
+                  ? <Img src={g.image} alt={g.prompt}
+                      fallback={<div style={{ height: 90, borderRadius: 12, background: `linear-gradient(160deg, ${g.colors[1]}, ${g.colors[3]})` }} />}
+                      style={{ width: '100%', height: 90, borderRadius: 12, objectFit: 'cover', display: 'block' }} />
+                  : <div style={{ height: 90, borderRadius: 12, background: `linear-gradient(160deg, ${g.colors[1]}, ${g.colors[3]})` }} />}
                 <div className="dim" style={{ fontSize: 11, marginTop: 4, textAlign: 'center' }}>{g.prompt}</div>
               </div>
             ))}
@@ -572,7 +669,7 @@ export const Radio: React.FC = () => {
               <div style={{ fontSize: 12.5, opacity: .85 }}>正在播放 · {radioTracks.find(t => t.id === playing)?.author}</div>
               <div className="bar mt-sm" style={{ background: 'rgba(255,255,255,.3)' }}><i style={{ width: '38%', background: '#fff' }} /></div>
             </div>
-            <button className="ly-icon-btn" onClick={() => setPlaying(null)} style={{ background: 'rgba(255,255,255,.25)', color: '#fff' }}>⏸</button>
+            <button className="ly-icon-btn" onClick={() => setPlaying(null)} aria-label="暂停" style={{ background: 'rgba(255,255,255,.25)', color: '#fff' }}>⏸</button>
           </div>
         </div>
       )}

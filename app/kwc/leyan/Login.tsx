@@ -26,6 +26,10 @@ const META: Record<Role, RoleMeta> = {
 export const Login: React.FC = () => {
   const { role, login, goRole, dark, setDark } = useStore();
   const m = META[role];
+  // 品牌区背景随主题切换：夜间用 accent 染色的深色渐变，避免浅色文字压在浅色渐变上看不清
+  const brandBg = dark
+    ? `linear-gradient(150deg, color-mix(in srgb, ${m.accent} 28%, #201b28), #1a1620)`
+    : m.soft;
   const [account, setAccount] = useState('');
   const [pwd, setPwd] = useState('');
   const [err, setErr] = useState('');
@@ -55,17 +59,19 @@ export const Login: React.FC = () => {
           <Img src={IMG.logo} alt="乐颜" fallback={<Logo size={36} mood={dark ? 'low' : 'warm'} />} style={{ width: 36, height: 36, objectFit: 'contain' }} />
           <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: 1 }}>乐颜</div>
         </div>
-        <button className="ly-icon-btn" onClick={() => setDark(!dark)} title={dark ? '切换日间' : '切换夜间'}><Icon name={dark ? 'sun' : 'moon'} size={18} /></button>
+        <button className="ly-icon-btn" onClick={() => setDark(!dark)} aria-label={dark ? '切换日间模式' : '切换夜间模式'} title={dark ? '切换日间' : '切换夜间'}><Icon name={dark ? 'sun' : 'moon'} size={18} /></button>
       </div>
 
       <div className="ly-login-wrap">
         {/* 左侧品牌 */}
-        <div className="ly-login-brand" style={{ background: m.soft, position: 'relative', overflow: 'hidden' }}>
-          {/* 可选登录背景图：放图即生效，无图时用上面的渐变 */}
+        <div className="ly-login-brand" style={{ background: brandBg, position: 'relative', overflow: 'hidden' }}>
+          {/* 可选登录背景图：作为淡淡纹理，避免压住文字降低可读性 */}
           <Img src={IMG.loginBg} alt="" fallback={null}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }} />
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: dark ? 0.12 : 0.2 }} />
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column' }}>
-          <Img src={IMG.hero} alt="小暖" fallback={<Logo size={120} />} style={{ width: 150, height: 150, objectFit: 'contain' }} />
+          <div className="ly-hero-anim" aria-hidden="false">
+            <Img src={IMG.hero} alt="小暖" fallback={<Logo size={120} />} style={{ width: 150, height: 150, objectFit: 'contain' }} />
+          </div>
           <h1>AI 原生智慧校园<br />心理健康关爱平台</h1>
           <p>一盏永远亮着的小夜灯，<br />不是冰冷的工具，是温暖的陪伴。</p>
           <div className="ly-login-roles">

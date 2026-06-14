@@ -1,0 +1,40 @@
+<!-- @dsCard group="Brand" -->
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>品牌 · 小暖</title>
+<style>
+:root{--text:#3f3833;--text3:#968b7e;--bg:#faf6f1}
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:28px}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--text3);font-size:13px;margin:0 0 24px}
+.lockup{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.name{font-size:30px;font-weight:800;letter-spacing:2px}
+.tag{font-size:12px;color:var(--text3);margin-top:2px}
+.swatches{display:flex;gap:12px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--text3);font-family:Consolas,monospace}
+.dot{width:48px;height:48px;border-radius:50%}
+</style></head><body>
+<h1>🏮 品牌标识 · 小暖</h1><p class="sub">拟人化「小夜灯」——一盏永远亮着的灯，温柔的陪伴者。暖橘渐变发光体。</p>
+<div class="lockup">
+  <svg width="72" height="72" viewBox="0 0 64 64" aria-label="乐颜 logo">
+    <defs>
+      <radialGradient id="body" cx="50%" cy="42%" r="60%">
+        <stop offset="48%" stop-color="#ffe1b0"/><stop offset="100%" stop-color="#f4894e"/>
+      </radialGradient>
+      <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#ffb066" stop-opacity="0.55"/><stop offset="100%" stop-color="#ffb066" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="32" cy="30" r="26" fill="url(#glow)"/>
+    <rect x="26.5" y="46" width="11" height="6" rx="3" fill="#ffd9a8"/>
+    <path d="M32 10c9 0 15 7.5 15 15.5 0 7-5 13.5-15 13.5s-15-6.5-15-13.5C17 17.5 23 10 32 10Z" fill="url(#body)" stroke="#f4894e" stroke-opacity="0.35" stroke-width="1.2"/>
+    <circle cx="25.5" cy="27" r="2.6" fill="#3f3833"/><circle cx="38.5" cy="27" r="2.6" fill="#3f3833"/>
+    <path d="M27 33c2 2 8 2 10 0" stroke="#3f3833" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <circle cx="21.5" cy="33" r="2.4" fill="#f4894e" opacity="0.28"/><circle cx="42.5" cy="33" r="2.4" fill="#f4894e" opacity="0.28"/>
+  </svg>
+  <div><div class="name">乐颜</div><div class="tag">AI 原生智慧校园心理健康关爱平台</div></div>
+</div>
+<div class="swatches">
+  <div class="sw"><span class="dot" style="background:#ffe1b0"></span>#ffe1b0</div>
+  <div class="sw"><span class="dot" style="background:#ffb066"></span>#ffb066</div>
+  <div class="sw"><span class="dot" style="background:#f4894e"></span>#f4894e</div>
+</div>
+</body></html>

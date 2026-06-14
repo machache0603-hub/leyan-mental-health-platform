@@ -3,7 +3,7 @@
    ============================================================ */
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { SectionHeader, WarmLoading, Modal, useAsync, Bar } from '../ui';
+import { SectionHeader, WarmLoading, WarmError, Modal, useAsync, Bar } from '../ui';
 import { LineChart, BarChart, Ring, RankBars } from '../charts';
 import {
   adminKpi, collegeTemps, alertTrend, alertEvents as seedAlerts, ALERT_STATUS_META,
@@ -43,7 +43,7 @@ export const Cockpit: React.FC = () => {
       {/* AI 行动建议 */}
       <div className="card" style={{ background: 'linear-gradient(120deg,#f3ecff,#eaf6ff)', border: 'none' }}>
         <SectionHeader title="智能行动建议" sub="基于全校数据的多步推理洞察" icon="🧠" />
-        {advice.loading ? <WarmLoading text="正在分析全校心理态势…" /> : (
+        {advice.loading ? <WarmLoading text="正在分析全校心理态势…" /> : advice.error ? <WarmError onRetry={advice.reload} /> : (
           <div className="col gap-sm">
             {advice.data!.map((a, i) => (
               <div key={i} className="row gap-sm card" style={{ background: 'var(--ly-surface)', padding: 14 }}>
@@ -109,6 +109,14 @@ export const AlertCenter: React.FC = () => {
   const filtered = list.filter(a => tab === 'all' || a.status === tab);
   const advance = (id: string) => AlertApi.advance(id).then(setList);
   const counts = { new: list.filter(a => a.status === 'new').length, processing: list.filter(a => a.status === 'processing').length, resolved: list.filter(a => a.status === 'resolved').length };
+  const total = counts.new + counts.processing + counts.resolved;
+  const accepted = counts.processing + counts.resolved;          // 已受理（含闭环）
+  const closeRate = total ? Math.round((counts.resolved / total) * 100) : 0;
+  const funnel = [
+    { k: '触发', n: total, c: 'var(--danger)' },
+    { k: '受理干预', n: accepted, c: 'var(--warn)' },
+    { k: '已闭环', n: counts.resolved, c: 'var(--ok)' },
+  ];
   return (
     <div className="ly-page-enter col gap-md">
       <SectionHeader title="预警管理中心" sub="预警事件从触发到闭环的全程追踪" icon="🚨" />
@@ -117,6 +125,25 @@ export const AlertCenter: React.FC = () => {
         <div className="card center col" style={{ borderTop: '4px solid var(--warn)' }}><div className="stat" style={{ color: 'var(--warn)' }}>{counts.processing}</div><div className="stat-label">干预中</div></div>
         <div className="card center col" style={{ borderTop: '4px solid var(--ok)' }}><div className="stat" style={{ color: 'var(--ok)' }}>{counts.resolved}</div><div className="stat-label">已闭环</div></div>
       </div>
+
+      {/* 预警闭环漏斗：触发 → 受理 → 闭环 的转化全景（招牌闭环可视化） */}
+      <div className="card">
+        <SectionHeader title="预警闭环漏斗" sub="从触发到闭环的转化全景" icon="🔄"
+          right={<span className="chip chip-ok">闭环率 {closeRate}%</span>} />
+        <div className="col gap-sm">
+          {funnel.map(s => (
+            <div key={s.k} className="row gap-sm">
+              <span className="dim" style={{ width: 64, fontSize: 12.5, flexShrink: 0 }}>{s.k}</span>
+              <div className="flex1"><Bar pct={total ? (s.n / total) * 100 : 0} color={s.c} label={`${s.k} ${s.n} 条`} /></div>
+              <span style={{ width: 30, textAlign: 'right', fontWeight: 700 }}>{s.n}</span>
+            </div>
+          ))}
+        </div>
+        <div className="dim" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.6 }}>
+          平均首次响应 4.3h · 数据贯通「学生打卡 → 连续低落自动预警 → 教师受理干预 → 标记闭环回访」
+        </div>
+      </div>
+
       <div className="pill-tab">{tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
       <div className="col gap-sm">
         {filtered.map(a => (
@@ -243,7 +270,7 @@ export const DataReport: React.FC = () => {
           <div className="section-title">📄 {period} · 心理健康数据分析报告</div>
           <span className="chip chip-ok">自动生成</span>
         </div>
-        {rep.loading ? <WarmLoading text="正在汇总本期数据，生成报告…" /> : (
+        {rep.loading ? <WarmLoading text="正在汇总本期数据，生成报告…" /> : rep.error ? <WarmError onRetry={rep.reload} /> : (
           <div className="col gap-md">
             {rep.data!.map((s, i) => (
               <div key={i}>

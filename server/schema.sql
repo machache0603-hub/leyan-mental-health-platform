@@ -150,3 +150,23 @@ create table if not exists ly_config (
   id   int primary key default 1,
   data jsonb not null
 );
+
+-- 13. 悄悄话会话（学生本人私有；crisis 标记危机会话，供加急关注）
+create table if not exists ly_chat_session (
+  id          varchar(32) primary key,
+  student     varchar(32) not null,
+  preview     varchar(64),
+  last_mood   varchar(8),
+  crisis      boolean default false,
+  start_time  timestamptz default now()
+);
+-- 14. 悄悄话消息
+create table if not exists ly_chat_msg (
+  id          bigserial primary key,
+  session     varchar(32) not null,
+  who         varchar(8)  not null,             -- me / warm
+  content     text,
+  mood        varchar(8),
+  create_time timestamptz default now()
+);
+create index if not exists idx_chatmsg_session on ly_chat_msg(session);
