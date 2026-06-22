@@ -80,7 +80,7 @@ const sessions = new Map();          // token -> { user, expires }
 const PUBLIC_ROUTES = new Set(['AuthController.login']);
 const ROUTE_ROLE = {
   MoodController: 'student', DiaryController: 'student', GalleryController: 'student', TreeholeController: 'student', ChatController: 'student',
-  TalkController: 'teacher',
+  TalkController: 'teacher', ScoreController: 'teacher',
   AlertController: 'admin', ConfigController: 'admin', ResourceController: 'admin',
   AuthController: 'any',
 };
@@ -104,6 +104,36 @@ const ALERT_SELECT = `select id, student, class_name as cls, level, reason, trig
 const TALK_SELECT = `select id::int, student, talk_date as date, topic, summary, follow_up as "followUp", done
                      from ly_talk_record order by id desc`;
 const RESOURCE_SELECT = `select id::int, title, type, usage, status, emoji from ly_resource order by id asc`;
+const SCORE_SELECT = `select id::int, student, class_name as "className", term, course,
+                             score::float, prev_score::float as "prevScore", delta::float, rank::int
+                      from ly_score`;
+
+/* —— 成绩 → 心情预测（服务端规则，与前端 ai.ts 的 mock 口径一致） —— */
+const MOOD_SCORE = { joy: 92, love: 88, calm: 78, low: 48, anxious: 38, sad: 28 };
+const MOOD_LABEL = { joy: '开心', love: '心动', calm: '平静', low: '低落', anxious: '焦虑', sad: '难过' };
+function predictMoodByGradeRule(course, delta, recentMoods) {
+  const d = Number(delta) || 0;
+  const moods = (recentMoods || []).filter((m) => MOOD_SCORE[m] != null);
+  const avg = moods.length ? moods.reduce((a, m) => a + MOOD_SCORE[m], 0) / moods.length : 60;
+  const trend = d <= -10 ? 'down' : d >= 5 ? 'up' : 'flat';
+  let risk;
+  if (d <= -15 || (d <= -8 && avg < 50)) risk = 'high';
+  else if (d <= -6 || avg < 55) risk = 'mid';
+  else if (d < 0) risk = 'low';
+  else risk = 'none';
+  const predictedMood = risk === 'high' ? (avg < 45 ? 'sad' : 'anxious') : risk === 'mid' ? 'low' : trend === 'up' ? 'joy' : 'calm';
+  const confidence = Math.min(0.95, 0.6 + Math.min(Math.abs(d), 30) / 60 + (moods.length ? 0.1 : 0));
+  const c = course || '本次考试';
+  const insight = d <= -10
+    ? `${c}成绩较上次下滑 ${Math.abs(d)} 分，叠加近期情绪偏${MOOD_LABEL[predictedMood]}，存在「成绩波动 → 情绪低落」的连锁风险，建议尽早安排一次温和谈心。`
+    : d < 0
+      ? `${c}成绩小幅波动（${d} 分），暂未见明显情绪风险，可在日常关注中带一句鼓励。`
+      : `${c}成绩稳中有升（+${d} 分），是一次正向反馈，适合借机肯定、巩固信心。`;
+  const suggestions = (risk === 'high' || risk === 'mid')
+    ? ['把"成绩"话题放在关心之后：先聊状态与睡眠，再自然过渡到学业。', '将"提升成绩"拆成本周可完成的一小步，给到掌控感而非压力。', '同步关注其打卡与树洞动态，必要时联动「预警跟进」建立闭环。']
+    : ['用一句具体的肯定强化正反馈（点出 TA 进步的地方）。', '邀请 TA 把这次的好状态记进「成长空间」，沉淀信心。'];
+  return { trend, risk, predictedMood, confidence, insight, suggestions };
+}
 
 /* ============================================================
    控制器路由表：键为「控制器.方法」，值为 async (params, ctx) => data
@@ -200,6 +230,60 @@ const routes = {
   async 'TalkController.toggleFollowUp'(p) {
     await q(`update ly_talk_record set done = not done where id=$1`, [p.id]);
     const r = await q(TALK_SELECT);
+    return r.rows;
+  },
+
+  /* ---------- 成绩导入 / 成绩→心情预测 / 教师绩效（教师端） ---------- */
+  async 'ScoreController.importScore'(p) {
+    const rows = Array.isArray(p.rows) ? p.rows : (p.student ? [p] : []);
+    if (!rows.length) throw { code: 1, message: '没有可导入的成绩' };
+    let imported = 0;
+    for (const r of rows) {
+      if (!r || !r.student || !r.course) continue;
+      const score = Number(r.score);
+      if (!Number.isFinite(score)) continue;
+      const prev = Number(r.prevScore);
+      const prevV = Number.isFinite(prev) ? prev : null;
+      const delta = prevV == null ? null : score - prevV;
+      const rank = Number.isFinite(Number(r.rank)) ? Number(r.rank) : null;
+      await q(`insert into ly_score(student, class_name, term, course, score, prev_score, delta, rank)
+               values($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [cap(r.student, 32), cap(r.className || '', 64), cap(r.term || '2025-2026 春', 16), cap(r.course, 64), score, prevV, delta, rank]);
+      imported++;
+    }
+    const r = await q(`${SCORE_SELECT} order by id desc`);
+    return { imported, list: r.rows };
+  },
+  async 'ScoreController.listScores'(p) {
+    const where = [], args = [];
+    if (p.student) { args.push(cap(p.student, 32)); where.push(`student=$${args.length}`); }
+    if (p.term) { args.push(cap(p.term, 16)); where.push(`term=$${args.length}`); }
+    if (p.course) { args.push(cap(p.course, 64)); where.push(`course=$${args.length}`); }
+    const sql = `${SCORE_SELECT} ${where.length ? 'where ' + where.join(' and ') : ''} order by id desc`;
+    const r = await q(sql, args);
+    return r.rows;
+  },
+  async 'ScoreController.moodPrediction'(p) {
+    if (!p.student) throw { code: 1, message: '缺少学生编号' };
+    const student = cap(p.student, 32);
+    const sc = await q(`${SCORE_SELECT} where student=$1 order by id desc limit 1`, [student]);
+    const latest = sc.rows[0];
+    const st = await q(`select trend from ly_student where number=$1`, [student]);
+    const recentMoods = st.rowCount ? String(st.rows[0].trend || '').split(',').map((s) => s.trim()).filter(Boolean) : [];
+    const pred = predictMoodByGradeRule(latest?.course, latest?.delta ?? 0, recentMoods);
+    return { student, course: latest?.course || null, current: latest?.score ?? null, scoreDelta: latest?.delta ?? 0, ...pred };
+  },
+  async 'ScoreController.teacherPerformance'(p) {
+    const where = [], args = [];
+    if (p.college && p.college !== '全部') { args.push(cap(p.college, 64)); where.push(`college=$${args.length}`); }
+    if (p.period) { args.push(cap(p.period, 16)); where.push(`period=$${args.length}`); }
+    const sql = `select id::int, teacher, college, period,
+                        alert_close_rate as "alertCloseRate", talk_count as "talkCount",
+                        mood_improve_score as "moodImproveScore", academic_companion_score as "academicCompanionScore",
+                        composite
+                 from ly_teacher_performance ${where.length ? 'where ' + where.join(' and ') : ''}
+                 order by composite desc, id asc`;
+    const r = await q(sql, args);
     return r.rows;
   },
 

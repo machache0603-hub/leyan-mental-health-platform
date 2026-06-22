@@ -5,7 +5,7 @@
    本文件用规则 + 模板模拟，接口签名与真实 Agent 调用保持一致。
    ============================================================ */
 
-import { MoodKey, StudentProfile, moodOf } from './data';
+import { MoodKey, StudentProfile, moodOf, MoodPrediction, MoodTrend, RiskLevel, TeacherPerformance } from './data';
 import * as LLM from './llm';
 
 /* 后端切换：VITE_AI_BACKEND=llm 时调真实大模型（经代理），否则规则模拟。
@@ -252,6 +252,75 @@ async function genReportMock(period: string): Promise<ReportSection[]> {
 }
 
 /* ============================================================
+   成绩关怀 Agent（第 5 个智能体）
+   能力：成绩导入分析、成绩→心情预测、学业风险预警、教师绩效评估。
+   ============================================================ */
+
+/* —— 成绩 → 心情预测（输入成绩变化 + 历史心情，输出趋势/风险/预测心情/洞察建议） —— */
+export interface GradeMoodInput {
+  course?: string;        // 课程名
+  scoreDelta: number;     // 成绩变化 = 本次 - 上次（负为下滑）
+  current?: number;       // 本次成绩
+  recentMoods: MoodKey[]; // 历史心情（近若干次）
+}
+async function predictMoodByGradeMock(input: GradeMoodInput): Promise<MoodPrediction> {
+  await sleep(620);
+  const d = Number(input.scoreDelta) || 0;
+  const moods = input.recentMoods || [];
+  const avg = moods.length ? moods.reduce((a, m) => a + moodOf(m).score, 0) / moods.length : 60;
+  const trend: MoodTrend = d <= -10 ? 'down' : d >= 5 ? 'up' : 'flat';
+  // 学业风险：成绩大幅下滑 + 近期情绪偏低 → 风险升级（宁可多关注）
+  let risk: RiskLevel;
+  if (d <= -15 || (d <= -8 && avg < 50)) risk = 'high';
+  else if (d <= -6 || avg < 55) risk = 'mid';
+  else if (d < 0) risk = 'low';
+  else risk = 'none';
+  const predictedMood: MoodKey =
+    risk === 'high' ? (avg < 45 ? 'sad' : 'anxious')
+      : risk === 'mid' ? 'low'
+        : trend === 'up' ? 'joy' : 'calm';
+  const confidence = Math.min(0.95, 0.6 + Math.min(Math.abs(d), 30) / 60 + (moods.length ? 0.1 : 0));
+  const course = input.course || '本次考试';
+  const insight = d <= -10
+    ? `${course}成绩较上次下滑 ${Math.abs(d)} 分，叠加近期情绪偏${moodOf(predictedMood).label}，存在「成绩波动 → 情绪低落」的连锁风险，建议尽早安排一次温和谈心。`
+    : d < 0
+      ? `${course}成绩小幅波动（${d} 分），暂未见明显情绪风险，可在日常关注中带一句鼓励。`
+      : `${course}成绩稳中有升（+${d} 分），是一次正向反馈，适合借机肯定、巩固信心。`;
+  const suggestions = (risk === 'high' || risk === 'mid')
+    ? [
+      '把"成绩"话题放在关心之后：先聊状态与睡眠，再自然过渡到学业。',
+      '将"提升成绩"拆成本周可完成的一小步，给到掌控感而非压力。',
+      '同步关注其打卡与树洞动态，必要时联动「预警跟进」建立闭环。',
+    ]
+    : [
+      '用一句具体的肯定强化正反馈（点出 TA 进步的地方）。',
+      '邀请 TA 把这次的好状态记进「成长空间」，沉淀信心。',
+    ];
+  return { trend, risk, predictedMood, confidence, insight, suggestions };
+}
+
+/* —— 教师绩效评估（多维指标 → 评级 + 亮点 + 改进建议） —— */
+export interface TeacherPerfEval { grade: string; summary: string; highlights: string[]; suggestions: string[]; }
+async function genTeacherPerformanceMock(p: TeacherPerformance): Promise<TeacherPerfEval> {
+  await sleep(680);
+  const c = p.composite;
+  const grade = c >= 85 ? '优秀' : c >= 75 ? '良好' : c >= 65 ? '合格' : '待提升';
+  const highlights: string[] = [];
+  if (p.alertCloseRate >= 85) highlights.push(`预警闭环率 ${p.alertCloseRate}%，风险处置及时、闭环意识强`);
+  if (p.talkCount >= 12) highlights.push(`本周期谈心 ${p.talkCount} 次，主动陪伴投入充分`);
+  if (p.moodImproveScore >= 80) highlights.push(`所带学生心情改善分 ${p.moodImproveScore}，关爱成效显著`);
+  if (p.academicCompanionScore >= 80) highlights.push(`学业陪伴分 ${p.academicCompanionScore}，把关心延伸到了学业`);
+  if (!highlights.length) highlights.push('各项指标均衡，关爱工作稳步推进');
+  const suggestions: string[] = [];
+  if (p.alertCloseRate < 80) suggestions.push('部分预警闭环偏慢，建议对高关注个案落实 72 小时首访。');
+  if (p.talkCount < 10) suggestions.push('谈心频次可再提升，优先覆盖成绩下滑且情绪偏低的同学。');
+  if (p.moodImproveScore < 70) suggestions.push('关注谈心后的情绪回访，把"谈过"做成"谈到改善"。');
+  if (!suggestions.length) suggestions.push('保持现有节奏，可把成功经验沉淀为学院的关爱范式。');
+  const summary = `${p.teacher}（${p.college} · ${p.period}）综合绩效 ${c} 分，评级「${grade}」。预警闭环率 ${p.alertCloseRate}%、谈心 ${p.talkCount} 次、心情改善分 ${p.moodImproveScore}、学业陪伴分 ${p.academicCompanionScore}，整体${c >= 80 ? '表现突出' : '稳健、有提升空间'}。`;
+  return { grade, summary, highlights, suggestions };
+}
+
+/* ============================================================
    对外导出（mock / 真实模型自动切换，失败回退 mock）
    组件 import 的就是下面这些，调用方式完全不变。
    ============================================================ */
@@ -278,3 +347,8 @@ export const genCampusAdvice = (temp: number, openAlerts: number) =>
   dispatch(() => LLM.genCampusAdvice(temp, openAlerts), () => genCampusAdviceMock(temp, openAlerts));
 export const genReport = (period: string) =>
   dispatch(() => LLM.genReport(period), () => genReportMock(period));
+/* —— 成绩关怀 Agent —— */
+export const predictMoodByGrade = (input: GradeMoodInput) =>
+  dispatch(() => LLM.predictMoodByGrade(input), () => predictMoodByGradeMock(input));
+export const genTeacherPerformance = (p: TeacherPerformance) =>
+  dispatch(() => LLM.genTeacherPerformance(p), () => genTeacherPerformanceMock(p));

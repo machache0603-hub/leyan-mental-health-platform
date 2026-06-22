@@ -16,8 +16,11 @@ import {
   myMoodHistory, gardenStories, treeholePosts, diaryEntries,
   talkRecords as seedTalks, alertEvents as seedAlerts, defaultConfig,
   resourceItems as seedResources,
+  scoreRecords as seedScores, teacherPerformances as seedPerf, studentProfiles,
   MoodLog, TreeholePost, DiaryEntry, TalkRecord, AlertEvent, AlertStatus, MoodKey, ResourceItem, Role,
+  ScoreRecord, MoodPrediction, TeacherPerformance,
 } from './data';
+import { predictMoodByGrade } from './ai';
 
 type Backend = 'local' | 'server' | 'cosmic';
 
@@ -254,6 +257,50 @@ export const ResourceApi = {
   },
 };
 
+/* —— 成绩导入 / 成绩→心情预测 / 教师绩效（教师端第 9 个功能） —— */
+export interface ScoreImportRow { student: string; className?: string; term?: string; course: string; score: number; prevScore?: number; rank?: number; }
+export const ScoreApi = {
+  /** 成绩列表（可按学生 / 学期 / 课程过滤） */
+  list(filter?: { student?: string; term?: string; course?: string }): Promise<ScoreRecord[]> {
+    if (REMOTE) return callKapi('ScoreController', 'listScores', filter || {});
+    let list = lget<ScoreRecord[]>('scores', seedScores);
+    if (filter?.student) list = list.filter(s => s.student === filter.student);
+    if (filter?.term) list = list.filter(s => s.term === filter.term);
+    if (filter?.course) list = list.filter(s => s.course === filter.course);
+    return delay(list);
+  },
+  /** 批量导入成绩（自动计算与上次的变化 delta） */
+  importScore(rows: ScoreImportRow[]): Promise<{ imported: number; list: ScoreRecord[] }> {
+    if (REMOTE) return callKapi('ScoreController', 'importScore', { rows });
+    const cur = lget<ScoreRecord[]>('scores', seedScores);
+    let nid = cur.reduce((m, s) => Math.max(m, s.id), 0);
+    const added: ScoreRecord[] = rows.map(r => {
+      const score = Number(r.score) || 0;
+      const prev = Number(r.prevScore) || 0;
+      return { id: ++nid, student: r.student, className: r.className || '', term: r.term || '2025-2026 春', course: r.course, score, prevScore: prev, delta: score - prev, rank: r.rank };
+    });
+    const list = [...added, ...cur];
+    lset('scores', list);
+    return delay({ imported: added.length, list });
+  },
+  /** 成绩 → 心情预测（local 复用 ai.predictMoodByGrade，server/cosmic 走后端 Agent） */
+  moodPrediction(student: string): Promise<MoodPrediction> {
+    if (REMOTE) return callKapi('ScoreController', 'moodPrediction', { student });
+    const sc = lget<ScoreRecord[]>('scores', seedScores).find(s => s.student === student);
+    const prof = studentProfiles.find(p => p.alias.includes(student));
+    const recentMoods = prof ? prof.trend : [];
+    return predictMoodByGrade({ course: sc?.course, scoreDelta: sc?.delta ?? 0, current: sc?.score, recentMoods });
+  },
+  /** 学院教师绩效看板（按学院 + 周期查询，按综合分降序） */
+  teacherPerformance(filter?: { college?: string; period?: string }): Promise<TeacherPerformance[]> {
+    if (REMOTE) return callKapi('ScoreController', 'teacherPerformance', filter || {});
+    let list = lget<TeacherPerformance[]>('teacher_perf', seedPerf);
+    if (filter?.college && filter.college !== '全部') list = list.filter(t => t.college === filter.college);
+    if (filter?.period) list = list.filter(t => t.period === filter.period);
+    return delay([...list].sort((a, b) => b.composite - a.composite));
+  },
+};
+
 /* —— 系统配置（管理端） —— */
 export const ConfigApi = {
   get(): Promise<typeof defaultConfig> {
@@ -297,6 +344,6 @@ export async function serverHealth(): Promise<{ ok: boolean; db: boolean } | nul
 
 /** 开发用：清空本地数据，恢复种子数据 */
 export function resetLocal() {
-  ['mood_history', 'garden_stories', 'diary', 'treehole', 'gallery', 'chat_sessions', 'talks', 'alerts', 'resources', 'config']
+  ['mood_history', 'garden_stories', 'diary', 'treehole', 'gallery', 'chat_sessions', 'talks', 'alerts', 'resources', 'config', 'scores', 'teacher_perf']
     .forEach(k => localStorage.removeItem(KEY(k)));
 }

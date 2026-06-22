@@ -261,3 +261,64 @@ export const campActivities: CampActivity[] = [
   { id: 2, title: '正念呼吸周', desc: '连续 7 天集体冥想，给大脑放个假', joined: 19, total: 32, days: 7, emoji: '🧘' },
   { id: 3, title: '互夸大会', desc: '匿名给同学写一句真诚的赞美', joined: 30, total: 32, days: 3, emoji: '💌' },
 ];
+
+/* ============================================================
+   成绩导入 / 成绩→心情预测 / 教师绩效看板（教师端第 9 个功能）
+   成绩仅用于「学业陪伴」的关怀提示，全部脱敏，不做任何评比公示。
+   ============================================================ */
+
+/* 成绩记录（教师批量导入，按脱敏编号关联学生） */
+export interface ScoreRecord {
+  id: number;
+  student: string;       // 脱敏编号，如 2026-A1
+  className: string;
+  term: string;          // 学期，如 2025-2026 春
+  course: string;        // 课程
+  score: number;         // 本次成绩
+  prevScore: number;     // 上次成绩（用于计算变化）
+  delta: number;         // 成绩变化 = score - prevScore
+  rank?: number;         // 班级排名（可空）
+}
+export const scoreRecords: ScoreRecord[] = [
+  { id: 1, student: '2026-A1', className: '人工智能研二·1班', term: '2025-2026 春', course: '机器学习', score: 68, prevScore: 89, delta: -21, rank: 22 },
+  { id: 2, student: '2026-B7', className: '计算机研二·1班', term: '2025-2026 春', course: '高级算法', score: 79, prevScore: 86, delta: -7, rank: 14 },
+  { id: 3, student: '2026-C3', className: '计算机研一·2班', term: '2025-2026 春', course: '数据结构', score: 91, prevScore: 88, delta: 3, rank: 4 },
+  { id: 4, student: '2026-D9', className: '人工智能研二·1班', term: '2025-2026 春', course: '深度学习', score: 72, prevScore: 81, delta: -9, rank: 18 },
+  { id: 5, student: '2026-E2', className: '软件工程研一·1班', term: '2025-2026 春', course: '软件工程', score: 94, prevScore: 90, delta: 4, rank: 2 },
+  { id: 6, student: '2026-F5', className: '计算机研二·1班', term: '2025-2026 春', course: '操作系统', score: 75, prevScore: 78, delta: -3, rank: 16 },
+];
+
+/* 成绩→心情预测结果（AI：成绩关怀 Agent · predictMoodByGrade） */
+export type MoodTrend = 'up' | 'down' | 'flat';
+export interface MoodPrediction {
+  trend: MoodTrend;            // 心情走势
+  risk: RiskLevel;             // 学业风险预警
+  predictedMood: MoodKey;      // 预测心情
+  confidence: number;          // 置信度 0~1
+  insight: string;             // 洞察
+  suggestions: string[];       // 关怀建议
+}
+
+/* 教师绩效（学院教师绩效看板） */
+export interface TeacherPerformance {
+  id?: number;
+  teacher: string;
+  college: string;
+  period: string;              // 周期，如 2026 春季学期
+  alertCloseRate: number;      // 预警闭环率 %
+  talkCount: number;           // 谈心次数
+  moodImproveScore: number;    // 心情改善分 0~100
+  academicCompanionScore: number; // 学业陪伴分 0~100
+  composite: number;           // 综合绩效分 0~100
+}
+export const teacherPerformances: TeacherPerformance[] = [
+  { id: 1, teacher: '张老师', college: '计算机学院', period: '2026 春季学期', alertCloseRate: 92, talkCount: 18, moodImproveScore: 84, academicCompanionScore: 88, composite: 88 },
+  { id: 2, teacher: '李老师', college: '计算机学院', period: '2026 春季学期', alertCloseRate: 80, talkCount: 12, moodImproveScore: 76, academicCompanionScore: 72, composite: 77 },
+  { id: 3, teacher: '王老师', college: '计算机学院', period: '2026 春季学期', alertCloseRate: 86, talkCount: 9, moodImproveScore: 70, academicCompanionScore: 66, composite: 75 },
+  { id: 4, teacher: '陈老师', college: '人工智能学院', period: '2026 春季学期', alertCloseRate: 74, talkCount: 15, moodImproveScore: 79, academicCompanionScore: 81, composite: 78 },
+  { id: 5, teacher: '赵老师', college: '人工智能学院', period: '2026 春季学期', alertCloseRate: 68, talkCount: 7, moodImproveScore: 62, academicCompanionScore: 70, composite: 67 },
+];
+
+/* 综合绩效分：预警闭环率·谈心活跃·心情改善·学业陪伴 的加权（与后端口径一致） */
+export const compositePerf = (p: { alertCloseRate: number; talkCount: number; moodImproveScore: number; academicCompanionScore: number }) =>
+  Math.round(p.alertCloseRate * 0.3 + Math.min(100, p.talkCount * 5) * 0.2 + p.moodImproveScore * 0.25 + p.academicCompanionScore * 0.25);

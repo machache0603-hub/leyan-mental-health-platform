@@ -170,3 +170,33 @@ create table if not exists ly_chat_msg (
   create_time timestamptz default now()
 );
 create index if not exists idx_chatmsg_session on ly_chat_msg(session);
+
+-- 15. 成绩（教师批量导入；仅用于学业陪伴关怀提示，按脱敏编号关联）
+create table if not exists ly_score (
+  id          bigserial primary key,
+  student     varchar(32) not null,             -- 脱敏编号，如 2026-A1
+  class_name  varchar(64),
+  term        varchar(16),                       -- 学期，如 2025-2026 春
+  course      varchar(64) not null,              -- 课程
+  score       numeric(5,1) not null,             -- 本次成绩
+  prev_score  numeric(5,1),                      -- 上次成绩（用于计算变化）
+  delta       numeric(5,1),                      -- 成绩变化 = score - prev_score
+  rank        int,                               -- 班级排名（可空）
+  create_time timestamptz default now()
+);
+create index if not exists idx_score_student on ly_score(student, term);
+
+-- 16. 教师绩效（学院教师绩效看板；多维关爱指标）
+create table if not exists ly_teacher_performance (
+  id                       bigserial primary key,
+  teacher                  varchar(64) not null,
+  college                  varchar(64),
+  period                   varchar(16),          -- 周期，如 2026 春季学期
+  alert_close_rate         int default 0,        -- 预警闭环率 %
+  talk_count               int default 0,        -- 谈心次数
+  mood_improve_score       int default 0,        -- 心情改善分 0~100
+  academic_companion_score int default 0,        -- 学业陪伴分 0~100
+  composite                int default 0,        -- 综合绩效分 0~100
+  create_time              timestamptz default now()
+);
+create index if not exists idx_perf_college on ly_teacher_performance(college, period);

@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 // 从而让本套测试确定性地验证 mock 逻辑、不发任何网络请求（不受 .env.local 影响）。
 vi.mock('../llm', () => ({}));
 
-import { detectEmotion, smallTalk } from '../ai';
+import { detectEmotion, smallTalk, predictMoodByGrade } from '../ai';
 
 describe('detectEmotion 情绪识别', () => {
   it('识别危机信号（自伤/轻生）→ crisis=true 且 mood=sad', async () => {
@@ -56,5 +56,22 @@ describe('smallTalk 悄悄话回复契约', () => {
     expect(r.text.length).toBeGreaterThan(0);
     expect(['joy', 'love', 'calm', 'low', 'anxious', 'sad']).toContain(r.mood);
     expect(Array.isArray(r.quickReplies)).toBe(true);
+  });
+});
+
+describe('predictMoodByGrade 成绩→心情预测（成绩关怀 Agent）', () => {
+  it('成绩大幅下滑 + 近期情绪偏低 → 高学业风险、心情走低、给出关怀建议', async () => {
+    const r = await predictMoodByGrade({ course: '机器学习', scoreDelta: -21, current: 68, recentMoods: ['anxious', 'sad', 'sad'] });
+    expect(r.trend).toBe('down');
+    expect(r.risk).toBe('high');
+    expect(r.insight.length).toBeGreaterThan(0);
+    expect(r.suggestions.length).toBeGreaterThan(0);
+    expect(['joy', 'love', 'calm', 'low', 'anxious', 'sad']).toContain(r.predictedMood);
+  });
+
+  it('成绩稳中有升 → 走势向好、低风险', async () => {
+    const r = await predictMoodByGrade({ course: '软件工程', scoreDelta: 6, current: 94, recentMoods: ['joy', 'calm', 'joy'] });
+    expect(r.trend).toBe('up');
+    expect(['low', 'none']).toContain(r.risk);
   });
 });

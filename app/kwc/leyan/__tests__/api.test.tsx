@@ -1,6 +1,6 @@
 /* ChatApi 聊天记录持久化（local 模式）测试 */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ChatApi } from '../api';
+import { ChatApi, ScoreApi } from '../api';
 
 const turn = (sessionId: string | null, mine: string, warm: string, mood: any, crisis = false) =>
   ChatApi.saveTurn({ sessionId, user: { who: 'me', text: mine }, warm: { who: 'warm', text: warm, mood }, crisis });
@@ -36,5 +36,30 @@ describe('ChatApi 聊天记录持久化（local）', () => {
     const sessions = await ChatApi.listSessions();
     expect(sessions[0].id).toBe(b.sessionId);
     expect(sessions[1].id).toBe(a.sessionId);
+  });
+});
+
+describe('ScoreApi 成绩导入 + 教师绩效（local）', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('importScore 自动计算成绩变化 delta 并可读回', async () => {
+    const r = await ScoreApi.importScore([{ student: '2026-Z9', className: '测试班', course: '测试课', score: 70, prevScore: 85 }]);
+    expect(r.imported).toBe(1);
+    const list = await ScoreApi.list({ student: '2026-Z9' });
+    expect(list.length).toBe(1);
+    expect(list[0].delta).toBe(-15);          // 70 - 85
+  });
+
+  it('teacherPerformance 按综合分降序返回（绩效看板排名）', async () => {
+    const list = await ScoreApi.teacherPerformance();
+    expect(list.length).toBeGreaterThan(0);
+    for (let i = 1; i < list.length; i++) {
+      expect(list[i - 1].composite).toBeGreaterThanOrEqual(list[i].composite);
+    }
+  });
+
+  it('teacherPerformance 可按学院过滤', async () => {
+    const list = await ScoreApi.teacherPerformance({ college: '人工智能学院' });
+    expect(list.every(t => t.college === '人工智能学院')).toBe(true);
   });
 });

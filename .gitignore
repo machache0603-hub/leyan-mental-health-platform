@@ -10,3 +10,6 @@ server/node_modules
 # 本地工具/编辑器配置（与项目无关）
 .claude/
 .vscode/
+
+# 运行期日志（dev:all 等脚本产生）
+*.log

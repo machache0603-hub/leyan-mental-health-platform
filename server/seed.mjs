@@ -86,6 +86,23 @@ const CONFIG = {
   anonymousDefault: true,
   nightMode: 'auto',
 };
+// 成绩（脱敏编号关联；prev_score 用于计算变化 delta）
+const SCORES = [
+  ['2026-A1', '人工智能研二·1班', '2025-2026 春', '机器学习', 68, 89, 22],
+  ['2026-B7', '计算机研二·1班', '2025-2026 春', '高级算法', 79, 86, 14],
+  ['2026-C3', '计算机研一·2班', '2025-2026 春', '数据结构', 91, 88, 4],
+  ['2026-D9', '人工智能研二·1班', '2025-2026 春', '深度学习', 72, 81, 18],
+  ['2026-E2', '软件工程研一·1班', '2025-2026 春', '软件工程', 94, 90, 2],
+  ['2026-F5', '计算机研二·1班', '2025-2026 春', '操作系统', 75, 78, 16],
+];
+// 教师绩效（学院教师绩效看板）
+const PERFORMANCE = [
+  ['张老师', '计算机学院', '2026 春季学期', 92, 18, 84, 88, 88],
+  ['李老师', '计算机学院', '2026 春季学期', 80, 12, 76, 72, 77],
+  ['王老师', '计算机学院', '2026 春季学期', 86, 9, 70, 66, 75],
+  ['陈老师', '人工智能学院', '2026 春季学期', 74, 15, 79, 81, 78],
+  ['赵老师', '人工智能学院', '2026 春季学期', 68, 7, 62, 70, 67],
+];
 
 async function isEmpty(table) {
   const r = await q(`select count(*)::int as n from ${table}`);
@@ -153,6 +170,18 @@ export async function seedAll() {
     for (const r of CLASSES)
       await q(`insert into ly_class(id, name, temp, trend, students, alerts) values($1,$2,$3,$4,$5,$6)`, r);
     log.push(`ly_class(${CLASSES.length})`);
+  }
+  if (await isEmpty('ly_score')) {
+    for (const [student, cls, term, course, score, prev, rank] of SCORES)
+      await q(`insert into ly_score(student, class_name, term, course, score, prev_score, delta, rank) values($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [student, cls, term, course, score, prev, score - prev, rank]);
+    log.push(`ly_score(${SCORES.length})`);
+  }
+  if (await isEmpty('ly_teacher_performance')) {
+    for (const [teacher, college, period, close, talks, mood, academic, composite] of PERFORMANCE)
+      await q(`insert into ly_teacher_performance(teacher, college, period, alert_close_rate, talk_count, mood_improve_score, academic_companion_score, composite) values($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [teacher, college, period, close, talks, mood, academic, composite]);
+    log.push(`ly_teacher_performance(${PERFORMANCE.length})`);
   }
   // 配置：单例 upsert
   await q(`insert into ly_config(id, data) values(1, $1)

@@ -6,7 +6,7 @@
 ## 一、项目简介
 
 面向高校校园心理健康场景的 AI 原生应用，以吉祥物「小暖」（拟人化小夜灯，灯光随情绪变色）
-为情感纽带，覆盖**学生 / 教师 / 管理**三端共 **24 个功能**，构建从情绪采集→识别→陪伴→预警→
+为情感纽带，覆盖**学生 / 教师 / 管理**三端共 **25 个功能**，构建从情绪采集→识别→陪伴→预警→
 干预→闭环的完整业务闭环。
 
 ## 二、技术栈
@@ -54,7 +54,7 @@ app/kwc/leyan/
 ├── store.tsx            全局状态（角色/心情/主题/悬浮球）
 ├── ui.tsx / charts.tsx  共享组件 / SVG 可视化
 ├── App.tsx              应用外壳（导航/布局/小暖悬浮球）
-└── features/            student.tsx · teacher.tsx · admin.tsx（24 功能）
+└── features/            student.tsx · teacher.tsx · admin.tsx（25 功能）
 app/ks/controller/       Kingscript 后端控制器示例（心情打卡 API）
 docs/苍穹平台映射设计.md   领域模型 / Agent / 工作流 / 部署映射
 ```

@@ -16,7 +16,7 @@ import {
 } from './features/student';
 import {
   TeacherHome, ClassWeather, StudentArchive, TeacherAssistant,
-  TalkRecords, Camp, ClassTree, TeacherRest,
+  TalkRecords, Camp, ClassTree, TeacherRest, ScoreImport,
 } from './features/teacher';
 import {
   Cockpit, TempMap, AlertCenter, ResourceCenter, DataReport, SystemConfig,
@@ -49,6 +49,7 @@ const NAV: Record<Role, NavConfig> = {
       { key: 't-archive', label: '学生档案', icon: 'folder', comp: StudentArchive, group: '关爱学生' },
       { key: 't-assistant', label: '智能助手', icon: 'wand', comp: TeacherAssistant, group: '关爱学生' },
       { key: 't-talk', label: '谈心记录本', icon: 'notebook', comp: TalkRecords, group: '关爱学生' },
+      { key: 't-score', label: '成绩导入', icon: 'report', comp: ScoreImport, group: '学业陪伴' },
       { key: 't-camp', label: '陪伴训练营', icon: 'camp', comp: Camp, group: '班级经营' },
       { key: 't-tree', label: '班级心理树', icon: 'tree', comp: ClassTree, group: '班级经营' },
       { key: 't-rest', label: '教师休憩站', icon: 'cup', comp: TeacherRest, group: '关爱自己' },

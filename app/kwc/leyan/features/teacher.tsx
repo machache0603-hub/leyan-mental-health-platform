@@ -1,17 +1,22 @@
 /* ============================================================
-   教师端 · 8 个功能
+   教师端 · 9 个功能
    ============================================================ */
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { TalkApi } from '../api';
-import { TalkRecord } from '../data';
+import { TalkApi, ScoreApi } from '../api';
+import { TalkRecord, ScoreRecord, MoodPrediction, TeacherPerformance } from '../data';
 import { SectionHeader, WarmLoading, WarmEmpty, WarmError, Modal, useAsync, MoodTag, Bar } from '../ui';
 import { Sparkline, RankBars, BarChart } from '../charts';
 import {
   classWeathers, studentProfiles, RISK_META, talkRecords as seedTalks, campActivities,
   moodOf, StudentProfile, alertTrend,
 } from '../data';
-import { genTalkTopics, genComment, genParentScript, genClassAdvice, CommentStyle, TalkTopic } from '../ai';
+import { genTalkTopics, genComment, genParentScript, genClassAdvice, genTeacherPerformance, CommentStyle, TalkTopic, TeacherPerfEval } from '../ai';
+
+/* 从脱敏别名提取编号：'同学A（编号 2026-A1）' → '2026-A1' */
+const codeOf = (s: StudentProfile) => (s.alias.match(/编号\s*([\w-]+)/)?.[1]) || s.id;
+const deltaChip = (d: number) => d > 0 ? 'chip-ok' : d < 0 ? 'chip-danger' : 'chip';
+const deltaText = (d: number) => `${d > 0 ? '↑ +' : d < 0 ? '↓ ' : '→ '}${d === 0 ? '持平' : Math.abs(d)}`;
 
 /* ⑪ 教师工作台 */
 export const TeacherHome: React.FC = () => {
@@ -391,6 +396,215 @@ export const TeacherRest: React.FC = () => {
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+/* ⑲ 成绩导入（教师端第 9 个功能：成绩导入 · 成绩→心情预测 · 学院教师绩效看板） */
+export const ScoreImport: React.FC = () => {
+  const [tab, setTab] = useState<'import' | 'predict' | 'perf'>('import');
+  return (
+    <div className="ly-page-enter col gap-md">
+      <SectionHeader title="成绩导入" sub="把学业波动纳入关爱视野——成绩→心情预测，让关心先于问题发生" icon="📊" />
+      <div className="card" style={{ background: 'var(--ly-surface-2)' }}>
+        <span style={{ fontSize: 13 }}>🔒 <b>关怀优先</b>：成绩仅用于「学业陪伴」的关怀提示，全部脱敏、不排名公示；成绩关怀 Agent 会结合心情历史预测情绪风险，必要时联动「预警跟进」。</span>
+      </div>
+      <div className="pill-tab">
+        <button className={tab === 'import' ? 'on' : ''} onClick={() => setTab('import')}>成绩导入</button>
+        <button className={tab === 'predict' ? 'on' : ''} onClick={() => setTab('predict')}>成绩 → 心情预测</button>
+        <button className={tab === 'perf' ? 'on' : ''} onClick={() => setTab('perf')}>教师绩效看板</button>
+      </div>
+      {tab === 'import' && <ScoreImportTab />}
+      {tab === 'predict' && <MoodPredictTab />}
+      {tab === 'perf' && <PerfBoardTab />}
+    </div>
+  );
+};
+
+/* —— 成绩导入 + 列表 —— */
+const ScoreImportTab: React.FC = () => {
+  const [list, setList] = useState<ScoreRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ code: codeOf(studentProfiles[0]), course: '', score: '', prevScore: '' });
+  const load = () => { setLoading(true); ScoreApi.list().then(r => { setList(r); setLoading(false); }); };
+  useEffect(load, []);
+  const save = () => {
+    if (!form.code || !form.course.trim() || form.score === '') return;
+    const prof = studentProfiles.find(s => codeOf(s) === form.code);
+    ScoreApi.importScore([{
+      student: form.code, className: prof?.cls, course: form.course.trim(),
+      score: Number(form.score), prevScore: form.prevScore === '' ? undefined : Number(form.prevScore),
+    }]).then(() => { setForm({ code: codeOf(studentProfiles[0]), course: '', score: '', prevScore: '' }); setOpen(false); load(); });
+  };
+  return (
+    <div className="col gap-md">
+      <div className="row-between">
+        <span className="muted" style={{ fontSize: 13 }}>共 {list.length} 条成绩记录</span>
+        <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>+ 录入成绩</button>
+      </div>
+      {loading ? <WarmLoading /> : list.length === 0 ? <WarmEmpty emoji="📊" text="还没有成绩，点右上角录入第一条" /> : (
+        <div className="col gap-sm">
+          {list.map(s => (
+            <div key={s.id} className="row-between card hover" style={{ padding: 14 }}>
+              <div className="col" style={{ alignItems: 'flex-start' }}>
+                <span style={{ fontWeight: 600, fontSize: 13.5 }}>{s.student} · {s.course}</span>
+                <span className="dim" style={{ fontSize: 11.5 }}>{s.className} · {s.term}{s.rank ? ` · 班级第 ${s.rank} 名` : ''}</span>
+              </div>
+              <div className="row gap-sm" style={{ alignItems: 'center' }}>
+                <span className="dim" style={{ fontSize: 12 }}>上次 {s.prevScore}</span>
+                <span style={{ fontWeight: 800, fontSize: 18 }}>{s.score}</span>
+                <span className={`chip ${deltaChip(s.delta)}`}>{deltaText(s.delta)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <Modal open={open} onClose={() => setOpen(false)} title="录入 / 导入成绩">
+        <div className="col gap-sm">
+          <select className="input" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })}>
+            {studentProfiles.map(s => <option key={s.id} value={codeOf(s)}>{s.alias}</option>)}
+          </select>
+          <input className="input" placeholder="课程名称（如 机器学习）" value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} />
+          <div className="row gap-sm">
+            <input className="input" type="number" placeholder="本次成绩" value={form.score} onChange={e => setForm({ ...form, score: e.target.value })} />
+            <input className="input" type="number" placeholder="上次成绩（选填）" value={form.prevScore} onChange={e => setForm({ ...form, prevScore: e.target.value })} />
+          </div>
+          <button className="btn btn-primary" onClick={save}>保存成绩</button>
+          <p className="muted" style={{ fontSize: 12 }}>提示：实际部署支持 Excel 批量导入（ScoreController.importScore 接收成绩数组），此处演示单条录入。</p>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+/* —— 成绩 → 心情预测（成绩关怀 Agent） —— */
+const TREND_META: Record<MoodPrediction['trend'], { label: string; arrow: string; color: string }> = {
+  up: { label: '心情走高', arrow: '↑', color: 'var(--ok)' },
+  down: { label: '心情走低', arrow: '↓', color: 'var(--danger)' },
+  flat: { label: '心情平稳', arrow: '→', color: 'var(--ly-text-2)' },
+};
+const MoodPredictTab: React.FC = () => {
+  const [code, setCode] = useState(codeOf(studentProfiles[0]));
+  const [pred, setPred] = useState<MoodPrediction | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = (c: string) => { setBusy(true); setPred(null); ScoreApi.moodPrediction(c).then(p => { setPred(p); setBusy(false); }); };
+  useEffect(() => { run(code); }, []); // 首屏给一个示例
+  const prof = studentProfiles.find(s => codeOf(s) === code);
+  return (
+    <div className="col gap-md">
+      <div className="card">
+        <div className="row-between wrap gap-sm">
+          <select className="input" style={{ maxWidth: 300 }} value={code} onChange={e => setCode(e.target.value)}>
+            {studentProfiles.map(s => <option key={s.id} value={codeOf(s)}>{s.alias}</option>)}
+          </select>
+          <button className="btn btn-primary" onClick={() => run(code)}>预测心情趋势</button>
+        </div>
+        {prof && <div className="row wrap gap-xs mt-sm">{prof.tags.map(t => <span key={t} className="chip">{t}</span>)}</div>}
+      </div>
+      {busy ? <WarmLoading text="成绩关怀 Agent 正在结合成绩与心情历史推演…" /> : pred ? (
+        <div className="card">
+          <div className="grid g3">
+            <div className="card" style={{ background: 'var(--ly-surface-2)', padding: 16 }}>
+              <div className="stat-label">预测心情</div>
+              <div style={{ fontSize: 24, marginTop: 4 }}>{moodOf(pred.predictedMood).emoji} {moodOf(pred.predictedMood).label}</div>
+            </div>
+            <div className="card" style={{ background: 'var(--ly-surface-2)', padding: 16 }}>
+              <div className="stat-label">心情走势</div>
+              <div style={{ fontSize: 22, marginTop: 4, color: TREND_META[pred.trend].color, fontWeight: 800 }}>{TREND_META[pred.trend].arrow} {TREND_META[pred.trend].label}</div>
+            </div>
+            <div className="card" style={{ background: 'var(--ly-surface-2)', padding: 16 }}>
+              <div className="stat-label">学业风险</div>
+              <div className="mt-sm"><span className={`chip ${RISK_META[pred.risk].chip}`}>{RISK_META[pred.risk].label}</span> <span className="dim" style={{ fontSize: 12 }}>置信度 {Math.round(pred.confidence * 100)}%</span></div>
+            </div>
+          </div>
+          <div className="card mt-md" style={{ background: 'var(--ly-surface-2)' }}>
+            <div className="section-sub" style={{ marginBottom: 6 }}>💡 洞察</div>
+            <p style={{ fontSize: 13.5, lineHeight: 1.8 }}>{pred.insight}</p>
+          </div>
+          <div className="mt-md">
+            <div className="section-sub" style={{ marginBottom: 8 }}>关怀建议</div>
+            <div className="col gap-sm">
+              {pred.suggestions.map((a, i) => (
+                <div key={i} className="row gap-sm card" style={{ background: 'var(--ly-surface-2)', padding: 14 }}>
+                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--ly-primary)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                  <span style={{ fontSize: 13.5, lineHeight: 1.7 }}>{a}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : <WarmEmpty emoji="🔮" text="选择学生，预测成绩对心情的影响" />}
+    </div>
+  );
+};
+
+/* —— 学院教师绩效看板 —— */
+const PerfBoardTab: React.FC = () => {
+  const colleges = ['全部', '计算机学院', '人工智能学院', '软件学院'];
+  const [college, setCollege] = useState('全部');
+  const perf = useAsync<TeacherPerformance[]>(() => ScoreApi.teacherPerformance({ college }), [college]);
+  const [sel, setSel] = useState<TeacherPerformance | null>(null);
+  const [evalRes, setEvalRes] = useState<TeacherPerfEval | null>(null);
+  const [busy, setBusy] = useState(false);
+  const openEval = (t: TeacherPerformance) => {
+    setSel(t); setEvalRes(null); setBusy(true);
+    genTeacherPerformance(t).then(e => { setEvalRes(e); setBusy(false); });
+  };
+  return (
+    <div className="col gap-md">
+      <div className="pill-tab" style={{ flexWrap: 'wrap' }}>
+        {colleges.map(c => <button key={c} className={college === c ? 'on' : ''} onClick={() => setCollege(c)}>{c}</button>)}
+      </div>
+      {perf.loading ? <WarmLoading /> : perf.error ? <WarmError onRetry={perf.reload} /> : (perf.data!.length === 0 ? <WarmEmpty emoji="🏅" text="该学院暂无绩效数据" /> : (
+        <>
+          <div className="card">
+            <SectionHeader title="综合绩效排名" sub="预警闭环率 · 谈心活跃 · 心情改善 · 学业陪伴 的加权" icon="🏅" />
+            <RankBars items={perf.data!.map((t, i) => ({ name: `${i + 1}. ${t.teacher}`, value: t.composite, color: i === 0 ? 'var(--ok)' : undefined }))} max={100} unit=" 分" />
+          </div>
+          <div className="col gap-sm">
+            {perf.data!.map(t => (
+              <div key={t.id ?? t.teacher} className="card hover">
+                <div className="row-between wrap gap-sm">
+                  <div className="row gap-sm" style={{ alignItems: 'baseline' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{t.teacher}</span>
+                    <span className="dim" style={{ fontSize: 12 }}>{t.college} · {t.period}</span>
+                  </div>
+                  <div className="row gap-sm" style={{ alignItems: 'center' }}>
+                    <span className="chip chip-primary">综合 {t.composite}</span>
+                    <button className="chip" onClick={() => openEval(t)}>查看评估 →</button>
+                  </div>
+                </div>
+                <div className="grid g4 mt-sm">
+                  <div className="card" style={{ background: 'var(--ly-surface-2)', padding: 12 }}><div className="stat-label">预警闭环率</div><div className="stat-sm mt-sm">{t.alertCloseRate}%</div></div>
+                  <div className="card" style={{ background: 'var(--ly-surface-2)', padding: 12 }}><div className="stat-label">谈心次数</div><div className="stat-sm mt-sm">{t.talkCount}</div></div>
+                  <div className="card" style={{ background: 'var(--ly-surface-2)', padding: 12 }}><div className="stat-label">心情改善分</div><div className="stat-sm mt-sm">{t.moodImproveScore}</div></div>
+                  <div className="card" style={{ background: 'var(--ly-surface-2)', padding: 12 }}><div className="stat-label">学业陪伴分</div><div className="stat-sm mt-sm">{t.academicCompanionScore}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ))}
+      <Modal open={!!sel} onClose={() => setSel(null)} title={sel ? `${sel.teacher} · 绩效评估` : ''} width={560}>
+        {busy ? <WarmLoading text="智能助手正在生成绩效评估…" /> : evalRes && (
+          <div className="col gap-md">
+            <div className="row gap-sm" style={{ alignItems: 'center' }}>
+              <span className="chip chip-primary" style={{ fontSize: 13 }}>评级 {evalRes.grade}</span>
+              {sel && <span className="chip chip-ok">综合 {sel.composite} 分</span>}
+            </div>
+            <p style={{ fontSize: 13.5, lineHeight: 1.8 }}>{evalRes.summary}</p>
+            <div>
+              <div className="section-sub" style={{ marginBottom: 6 }}>✨ 亮点</div>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>{evalRes.highlights.map((h, i) => <li key={i} style={{ fontSize: 13, lineHeight: 1.7 }}>{h}</li>)}</ul>
+            </div>
+            <div>
+              <div className="section-sub" style={{ marginBottom: 6 }}>📌 改进建议</div>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>{evalRes.suggestions.map((h, i) => <li key={i} style={{ fontSize: 13, lineHeight: 1.7 }}>{h}</li>)}</ul>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

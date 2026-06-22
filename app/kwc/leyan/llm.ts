@@ -3,8 +3,8 @@
    ai.ts 在 'llm' 模式下委托到这里；任何失败由 ai.ts 回退 mock。
    前端只连代理(localhost:8787)，绝不持有 API Key。
    ============================================================ */
-import type { EmotionResult, ChatReply, MoodForecast, TalkTopic, CommentStyle, ReportSection } from './ai';
-import { MoodKey, StudentProfile, moodOf } from './data';
+import type { EmotionResult, ChatReply, MoodForecast, TalkTopic, CommentStyle, ReportSection, GradeMoodInput, TeacherPerfEval } from './ai';
+import { MoodKey, StudentProfile, moodOf, MoodPrediction, MoodTrend, RiskLevel, TeacherPerformance } from './data';
 
 const PROXY = (import.meta as any).env?.VITE_LLM_PROXY || 'http://localhost:8787';
 
@@ -154,4 +154,39 @@ export async function genReport(period: string): Promise<ReportSection[]> {
   ], { json: true, temperature: 0.7 });
   const arr = parseJson<any[]>(out);
   return arr.map(s => ({ title: String(s.title || ''), body: String(s.body || '') }));
+}
+
+/* —— 成绩关怀：成绩→心情预测 —— */
+const MOOD_TREND: MoodTrend[] = ['up', 'down', 'flat'];
+const RISK_SET: RiskLevel[] = ['high', 'mid', 'low', 'none'];
+export async function predictMoodByGrade(input: GradeMoodInput): Promise<MoodPrediction> {
+  const moods = (input.recentMoods || []).map(m => moodOf(m).label).join('、') || '（无）';
+  const out = await chat([
+    { role: 'system', content: '你是高校"成绩关怀"助手，擅长从学业波动预判学生情绪风险，关爱优先、不制造焦虑，只返回JSON。' },
+    { role: 'user', content: `课程「${input.course || '本次考试'}」成绩变化 ${input.scoreDelta} 分（负为下滑${input.current != null ? `，本次 ${input.current} 分` : ''}），该生近期心情依次为：${moods}。\n请预测其情绪走势与学业风险，返回 {"trend":"up|down|flat","risk":"high|mid|low|none","predictedMood":"joy|love|calm|low|anxious|sad","confidence":0~1,"insight":"一句洞察","suggestions":["2~3条给辅导员的关怀建议"]}。成绩明显下滑且近期情绪偏低时风险应升级。` },
+  ], { json: true, temperature: 0.4 });
+  const j = parseJson<any>(out);
+  return {
+    trend: MOOD_TREND.includes(j.trend) ? j.trend : 'flat',
+    risk: RISK_SET.includes(j.risk) ? j.risk : 'low',
+    predictedMood: safeMood(j.predictedMood),
+    confidence: Number(j.confidence) || 0.7,
+    insight: String(j.insight || ''),
+    suggestions: Array.isArray(j.suggestions) ? j.suggestions.map(String).slice(0, 3) : [],
+  };
+}
+
+/* —— 成绩关怀：教师绩效评估 —— */
+export async function genTeacherPerformance(p: TeacherPerformance): Promise<TeacherPerfEval> {
+  const out = await chat([
+    { role: 'system', content: '你是高校学生工作绩效分析助手，客观、建设性地评估辅导员的心理关爱工作，只返回JSON。' },
+    { role: 'user', content: `${p.teacher}（${p.college}·${p.period}）本周期指标：预警闭环率 ${p.alertCloseRate}%、谈心 ${p.talkCount} 次、心情改善分 ${p.moodImproveScore}、学业陪伴分 ${p.academicCompanionScore}、综合分 ${p.composite}。\n返回 {"grade":"优秀|良好|合格|待提升","summary":"一段总评","highlights":["亮点"],"suggestions":["改进建议"]}。` },
+  ], { json: true, temperature: 0.5 });
+  const j = parseJson<any>(out);
+  return {
+    grade: String(j.grade || '良好'),
+    summary: String(j.summary || ''),
+    highlights: Array.isArray(j.highlights) ? j.highlights.map(String) : [],
+    suggestions: Array.isArray(j.suggestions) ? j.suggestions.map(String) : [],
+  };
 }
